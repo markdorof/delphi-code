@@ -82,7 +82,7 @@ def arguments() -> argparse.Namespace:
     setup = add_command_parser("setup", help="Download or import the pinned model and check the installation")
     setup.add_argument("--from", dest="source", help="Import a prepared MiniLM model without network access")
     _add_model_option(setup, help="Model destination")
-    mcp = commands.add_parser("mcp", help="Serve search, index, status and list as MCP tools over stdio")
+    mcp = commands.add_parser("mcp", help="Serve every command as an MCP tool over stdio")
     _add_model_option(mcp)
     return parser.parse_args()
 

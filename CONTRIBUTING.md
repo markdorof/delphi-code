@@ -71,6 +71,10 @@ Set `DELPHI_CODE_TEST_MODEL` to the actual model location; a model prepared insi
 
 The `tests/offline` suite launches real CLI subprocesses under OS network denial, uses an empty Hugging Face cache, and records Python DNS/connect attempts before runtime imports. It covers offline model import and reuse, missing models, doctor, actual retrieval, same-content reuse, preserved-mtime edits, deletion, ignore negation, filters, line numbers, empty results, and JSON output and exit codes. A separate socket probe verifies that the OS blocks networking. The directory is intentionally outside regular unittest discovery, so run both scripts for the full check. Neither suite tests live model downloads; CI does (see below).
 
+## Claude Code plugin
+
+The plugin lives in `plugin/`: the skill and `.mcp.json` for `delphi-code mcp`. `.claude-plugin/marketplace.json` at the repository root lists it, and the plugin has no `version`, so users get each commit. Check both after changes with `claude plugin validate .`, and try them with `claude --plugin-dir ./plugin`.
+
 ## Third-party notices
 
 For a release that bundles dependencies, run `scripts/collect_notices.py` in the release environment and `scripts/prepare_notices.py` during online preparation. Both collect notices under `build/third_party/`; review them and include them with that release. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

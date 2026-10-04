@@ -1,0 +1,12 @@
+{
+  "name": "delphi-code",
+  "description": "Offline semantic code search for agents",
+  "owner": { "name": "Mark Dorofeev" },
+  "plugins": [
+    {
+      "name": "delphi-code",
+      "source": "./plugin",
+      "description": "Semantic code search over local indexes: MCP server and skill"
+    }
+  ]
+}

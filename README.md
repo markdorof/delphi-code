@@ -26,17 +26,14 @@ delphi-code search 'where are user passwords checked?'
 
 `setup` downloads and verifies the embedding model once; after that, every command runs offline. Without `-p`, `search` looks through every indexed project.
 
-To teach Claude Code when and how to search with it, install the [skill](https://github.com/markdorof/delphi-code/blob/main/plugin/skills/delphi-code/SKILL.md) (other agents can use the same file as instructions):
+To use it from Claude Code, install the plugin. It adds an MCP server that keeps the model loaded, so repeated searches are near-instant, and a [skill](https://github.com/markdorof/delphi-code/blob/main/plugin/skills/delphi-code/SKILL.md) that tells Claude when to search by meaning instead of grep:
 
 ```sh
-mkdir -p ~/.claude/skills/delphi-code && curl -fsSL https://raw.githubusercontent.com/markdorof/delphi-code/main/plugin/skills/delphi-code/SKILL.md -o ~/.claude/skills/delphi-code/SKILL.md
+claude plugin marketplace add markdorof/delphi-code
+claude plugin install delphi-code@delphi-code
 ```
 
-Agents that support MCP can also connect to `delphi-code mcp`, which keeps the model loaded so repeated searches are near-instant. For Claude Code:
-
-```sh
-claude mcp add --scope user delphi-code -- delphi-code mcp
-```
+Other agents can run `delphi-code mcp` as a stdio MCP server and use the skill as instructions.
 
 ## Requirements
 

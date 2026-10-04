@@ -39,8 +39,8 @@ def delphi_code_server(model: str) -> McpStdioServer:
 
 def delphi_code_tools(model: str) -> list[McpTool]:
     project = _string_property(
-        "Project path, indexed key (github.com/acme/api) or indexed folder name (api); "
-        "defaults to the server's working directory"
+        "Absolute path of the project root, or an indexed key (github.com/acme/api) or folder name (api). "
+        "Pass it explicitly: the default is the server's working directory, which may not be your project"
     )
     indexing_selection = {
         "path": _string_list_property("Only index paths matching these project-relative globs, such as src/*"),

@@ -7,6 +7,8 @@ description: Semantic code search over locally indexed projects with the delphi-
 
 `delphi-code` answers natural-language questions about code from a local index. It runs offline.
 
+If the `delphi-code` MCP tools (`search`, `index`, `status`, and the rest) are available, use them: they take the same options as the CLI commands below and answer in milliseconds, because the server keeps the model loaded. Otherwise run the CLI, which loads the model on every call.
+
 ## When to use it instead of grep
 
 - You know the behaviour or concept but not the identifier: "where is the session token refreshed?"
@@ -43,7 +45,7 @@ delphi-code index --json -p /absolute/path/to/project     # build or incremental
 delphi-code list --json --indexed                         # which projects are indexed
 ```
 
-Indexing is incremental, so re-running `index` after edits is cheap. The first index of a large project can take minutes.
+Indexes don't update on their own. After you edit files, run `index` before searching if the results should include your changes; it's incremental, so this is cheap. The first index of a large project can take minutes.
 
 ## Errors
 
