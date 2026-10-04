@@ -26,6 +26,12 @@ delphi-code search 'where are user passwords checked?'
 
 `setup` downloads and verifies the embedding model once; after that, every command runs offline. Without `-p`, `search` looks through every indexed project.
 
+To teach Claude Code when and how to search with it, install the [skill](plugin/skills/delphi-code/SKILL.md) (other agents can use the same file as instructions):
+
+```sh
+mkdir -p ~/.claude/skills/delphi-code && curl -fsSL https://raw.githubusercontent.com/markdorof/delphi-code/main/plugin/skills/delphi-code/SKILL.md -o ~/.claude/skills/delphi-code/SKILL.md
+```
+
 ## Requirements
 
 - macOS 14+ on arm64 (tested). Linux is not yet verified; Windows is not supported.
