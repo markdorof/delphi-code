@@ -1,0 +1,10 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "delphi-code",
+  "description": "Offline semantic code search: an MCP server that keeps the model loaded, and a skill that tells the agent when to search by meaning instead of grep",
+  "author": { "name": "Mark Dorofeev" },
+  "homepage": "https://github.com/markdorof/delphi-code",
+  "repository": "https://github.com/markdorof/delphi-code",
+  "license": "Apache-2.0",
+  "keywords": ["code-search", "semantic-search", "embeddings", "offline", "mcp"]
+}

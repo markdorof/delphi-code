@@ -73,7 +73,7 @@ The `tests/offline` suite launches real CLI subprocesses under OS network denial
 
 ## Claude Code plugin
 
-The plugin lives in `plugin/`: the skill and `.mcp.json` for `delphi-code mcp`. `.claude-plugin/marketplace.json` at the repository root lists it, and the plugin has no `version`, so users get each commit. Check both after changes with `claude plugin validate .`, and try them with `claude --plugin-dir ./plugin`.
+The plugin lives in `plugin/` in two formats that share `skills/`: Claude Code's (`.claude-plugin/plugin.json`, `.mcp.json`, listed by `.claude-plugin/marketplace.json` at the repository root) and the open [Agent Plugins](https://agent-plugins.org) 1.0.0 format that Codex and Cursor read (`plugin.json`, `mcp.json`, listed for Codex by `.agents/plugins/marketplace.json`). Keep the descriptions and server command in sync. Neither has a `version`, so users get each commit. Check Claude Code's with `claude plugin validate .` and try it with `claude --plugin-dir ./plugin`; check the portable files against the schemas in the [spec repository](https://github.com/agentplugins/agent-plugins-spec).
 
 ## Third-party notices
 

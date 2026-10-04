@@ -26,14 +26,17 @@ delphi-code search 'where are user passwords checked?'
 
 `setup` downloads and verifies the embedding model once; after that, every command runs offline. Without `-p`, `search` looks through every indexed project.
 
-To use it from Claude Code, install the plugin. It adds an MCP server that keeps the model loaded, so repeated searches are near-instant, and a [skill](https://github.com/markdorof/delphi-code/blob/main/plugin/skills/delphi-code/SKILL.md) that tells Claude when to search by meaning instead of grep:
+To use it from an agent, connect the agent to the MCP server, which keeps the model loaded so repeated searches are near-instant, and give it the [skill](https://github.com/markdorof/delphi-code/blob/main/plugin/skills/delphi-code/SKILL.md), which tells it when to search by meaning instead of grep:
 
-```sh
-claude plugin marketplace add markdorof/delphi-code
-claude plugin install delphi-code@delphi-code
-```
+| Agent | Setup |
+|---|---|
+| Claude Code | `claude plugin marketplace add markdorof/delphi-code`, then `claude plugin install delphi-code@delphi-code` |
+| Codex | `codex plugin marketplace add markdorof/delphi-code`, then install it from `/plugins` |
+| Cursor | Add `{"mcpServers": {"delphi-code": {"type": "stdio", "command": "delphi-code", "args": ["mcp"]}}}` to `~/.cursor/mcp.json` |
+| VS Code (Copilot) | `code --add-mcp '{"name": "delphi-code", "command": "delphi-code", "args": ["mcp"]}'` |
+| Gemini CLI | `gemini mcp add delphi-code delphi-code mcp` |
 
-Other agents can run `delphi-code mcp` as a stdio MCP server and use the skill as instructions.
+The Claude Code and Codex plugins include both. For the others, also copy the skill to `~/.agents/skills/delphi-code/SKILL.md`.
 
 ## Requirements
 
