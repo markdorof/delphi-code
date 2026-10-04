@@ -5,6 +5,8 @@ from ..infrastructure.store import Index, Store
 from .local_model import open_model
 from .project_catalog import optional_path_text, resolve_indexed
 
+MAX_SEARCH_LIMIT = 1000
+
 
 class SearchRequest:
     def __init__(self, query: str, paths: list[str], languages: list[str], limit: int):

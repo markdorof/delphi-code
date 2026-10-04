@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 import time
 
+from . import mcp_server
 from .controllers import indexing, installation, project_catalog, searching
 from .controllers.response import ControllerResponse
 from .domain.errors import ExitCode, Failure
@@ -14,12 +15,11 @@ from .domain.selection import DEFAULT_MAX_BYTES, FileSelection
 from .infrastructure.log_file import write_logs_to_file
 from .infrastructure.paths import model_directory
 from .services.progress import Progress
-from .services.searching import SearchRequest
+from .services.searching import MAX_SEARCH_LIMIT, SearchRequest
 from .ui import output
 from .ui.prompts import TerminalPrompts
 from .ui.terminal import TerminalProgress
 
-MAX_SEARCH_LIMIT = 1000
 logger = logging.getLogger(__name__)
 
 
@@ -82,6 +82,8 @@ def arguments() -> argparse.Namespace:
     setup = add_command_parser("setup", help="Download or import the pinned model and check the installation")
     setup.add_argument("--from", dest="source", help="Import a prepared MiniLM model without network access")
     _add_model_option(setup, help="Model destination")
+    mcp = commands.add_parser("mcp", help="Serve search, index, status and list as MCP tools over stdio")
+    _add_model_option(mcp)
     return parser.parse_args()
 
 
@@ -98,6 +100,9 @@ def main():
     progress = TerminalProgress.on_terminal()
     try:
         args = arguments()
+        if args.command == "mcp":
+            _serve_mcp(args.model)
+            return
         command, write_json = args.command, output.json_output_requested(json_flag=args.json)
         logger.info("%s started in %s", command, Path.cwd())
         logger.debug("%s arguments: %s", command, vars(args))
@@ -130,6 +135,11 @@ COMMANDS: dict[str, Callable[[argparse.Namespace, Progress], ControllerResponse]
     "remove": lambda args, progress: project_catalog.remove(args.name, args.keep_index),
     "setup": lambda args, progress: installation.setup(args.model, args.source, progress),
 }
+
+
+def _serve_mcp(model: str):
+    logger.info("mcp server started in %s", Path.cwd())
+    mcp_server.serve(model)
 
 
 def _log_failure(command: str | None, exc: Exception, failure: Failure, seconds: float):

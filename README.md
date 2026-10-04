@@ -26,10 +26,16 @@ delphi-code search 'where are user passwords checked?'
 
 `setup` downloads and verifies the embedding model once; after that, every command runs offline. Without `-p`, `search` looks through every indexed project.
 
-To teach Claude Code when and how to search with it, install the [skill](plugin/skills/delphi-code/SKILL.md) (other agents can use the same file as instructions):
+To teach Claude Code when and how to search with it, install the [skill](https://github.com/markdorof/delphi-code/blob/main/plugin/skills/delphi-code/SKILL.md) (other agents can use the same file as instructions):
 
 ```sh
 mkdir -p ~/.claude/skills/delphi-code && curl -fsSL https://raw.githubusercontent.com/markdorof/delphi-code/main/plugin/skills/delphi-code/SKILL.md -o ~/.claude/skills/delphi-code/SKILL.md
+```
+
+Agents that support MCP can also connect to `delphi-code mcp`, which keeps the model loaded so repeated searches are near-instant. For Claude Code:
+
+```sh
+claude mcp add --scope user delphi-code -- delphi-code mcp
 ```
 
 ## Requirements
@@ -107,6 +113,7 @@ delphi-code list --indexed
 | `sync` | Indexes every tracked project. | `--model` |
 | `list` | Lists tracked projects and stored indexes. | `--indexed` |
 | `remove NAME` | Stops tracking a project and deletes its index. | `--keep-index` |
+| `mcp` | Serves the commands above as MCP tools over stdio, with the same names and options. | `--model` |
 
 Every command accepts `--json` and `--help`. `--path`, `--language`, and `--ignore` can be repeated.
 

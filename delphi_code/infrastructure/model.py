@@ -5,7 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import shlex
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from ..domain.errors import ExitCode, Failure
 
@@ -39,8 +39,14 @@ class LocalModel:
         if not location:
             raise _model_failure("model_missing", "Supply --model /absolute/local/model or DELPHI_CODE_MODEL")
         directory = Path(location).expanduser().resolve()
+        file_stats = _asset_file_stats(directory)
+        reusable = _models_inspected_in_this_process.get(directory)
+        if reusable and reusable.file_stats == file_stats:
+            return reusable.model
         _validate_layout(directory)
-        return cls(directory, _asset_digest(directory))
+        model = cls(directory, _asset_digest(directory))
+        _models_inspected_in_this_process[directory] = _InspectedModel(file_stats, model)
+        return model
 
     @property
     def dimensions(self) -> int:
@@ -72,6 +78,24 @@ class LocalModel:
             )
         except Exception as exc:
             raise _model_failure("model_invalid", f"Cannot load local model assets at {self.directory}: {exc}") from exc
+
+
+class _InspectedModel(NamedTuple):
+    file_stats: tuple[tuple[str, int, int], ...]
+    model: LocalModel
+
+
+# A long-running MCP server opens the model for every tool call; hashing and loading it each time takes seconds.
+_models_inspected_in_this_process: dict[Path, _InspectedModel] = {}
+
+
+def _asset_file_stats(directory: Path) -> tuple[tuple[str, int, int], ...]:
+    return tuple(
+        (path.relative_to(directory).as_posix(), stat.st_size, stat.st_mtime_ns)
+        for path in sorted(directory.rglob("*"))
+        if path.is_file()
+        for stat in [path.stat()]
+    )
 
 
 def _validate_layout(directory: Path):
