@@ -83,6 +83,21 @@ print_path_hint_if_missing() {
   esac
 }
 
+version_is_older() {
+  [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n 1)" = "$1" ]
+}
+
+# Pinning with == stops `uv tool upgrade`, so only an older release than this script's is pinned.
+package_spec_for() {
+  if [ -z "$1" ]; then
+    printf 'delphi-code\n'
+  elif [ -z "$DELPHI_CODE_RELEASE_VERSION" ] || version_is_older "$1" "$DELPHI_CODE_RELEASE_VERSION"; then
+    printf 'delphi-code==%s\n' "$1"
+  else
+    printf 'delphi-code>=%s\n' "$1"
+  fi
+}
+
 main() {
   requested_version="${DELPHI_CODE_VERSION:-$DELPHI_CODE_RELEASE_VERSION}"
   setup_requested=yes
@@ -116,7 +131,7 @@ main() {
   check_platform_supported
   uv=$(uv_executable)
 
-  package_spec="delphi-code${requested_version:+==$requested_version}"
+  package_spec=$(package_spec_for "$requested_version")
   say "installing $package_spec with $uv"
   "$uv" tool install --managed-python --upgrade "$package_spec" </dev/null
 
