@@ -11,6 +11,7 @@ PARSE_ERROR = -32700
 INVALID_REQUEST = -32600
 METHOD_NOT_FOUND = -32601
 INVALID_PARAMS = -32602
+INTERNAL_ERROR = -32603
 JSON_TYPE_CHECKS: dict[str, Callable[[Any], bool]] = {
     "string": lambda value: isinstance(value, str),
     "integer": lambda value: isinstance(value, int) and not isinstance(value, bool),
@@ -92,6 +93,10 @@ class McpStdioServer:
             return {"jsonrpc": "2.0", "id": request_id, "result": answer(params)}
         except _InvalidParams as exc:
             return _error_reply(request_id, INVALID_PARAMS, str(exc))
+        except Exception as exc:
+            # One bad request must not end the loop and disconnect the client.
+            logger.exception("MCP method %s raised unexpectedly", method)
+            return _error_reply(request_id, INTERNAL_ERROR, f"Internal error: {exc}")
 
     def _initialize(self, params: dict[str, Any]) -> dict[str, Any]:
         requested = params.get("protocolVersion")

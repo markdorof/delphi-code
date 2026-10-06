@@ -28,10 +28,13 @@ ECHO = McpTool(
 )
 
 
-def replies_to(*messages):
+UNSERIALIZABLE = McpTool("unserializable", "Return NaN", {"type": "object"}, lambda arguments: {"score": float("nan")})
+
+
+def replies_to(*messages, tools=(ECHO,)):
     incoming = io.StringIO("".join((m if isinstance(m, str) else json.dumps(m)) + "\n" for m in messages))
     outgoing = io.StringIO()
-    McpStdioServer("test", "1.0", "Use echo", [ECHO]).answer_messages(incoming, outgoing)
+    McpStdioServer("test", "1.0", "Use echo", list(tools)).answer_messages(incoming, outgoing)
     return [json.loads(line) for line in outgoing.getvalue().splitlines()]
 
 
@@ -72,6 +75,13 @@ class McpStdioProtocol(unittest.TestCase):
         self.assertEqual(discover["error"]["code"], -32601)
         self.assertEqual(garbage["error"]["code"], -32700)
         self.assertEqual(unknown_tool["error"]["code"], -32602)
+
+    def test_unexpected_errors_get_an_internal_error_and_the_server_keeps_answering(self):
+        broken, ping = replies_to(
+            request(1, "tools/call", {"name": "unserializable"}), request(2, "ping"), tools=[UNSERIALIZABLE]
+        )
+        self.assertEqual(broken["error"]["code"], -32603)
+        self.assertEqual(ping, {"jsonrpc": "2.0", "id": 2, "result": {}})
 
     def test_lists_tools_with_schema_and_annotations(self):
         (listing,) = replies_to(request(1, "tools/list"))
