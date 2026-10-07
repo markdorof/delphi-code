@@ -5,23 +5,28 @@ import unittest
 from unittest.mock import patch
 
 from delphi_code.cli import arguments
+from delphi_code.domain.errors import Failure
+from delphi_code.infrastructure.paths import model_directory
 
 
 class ModelDefaults(unittest.TestCase):
-    def test_override_precedence(self):
+    def test_environment_overrides_default(self):
         with patch.dict(os.environ, {"DELPHI_CODE_MODEL": "/configured/model"}):
-            with patch.object(sys, "argv", ["delphi-code", "index"]):
-                self.assertEqual(arguments().model, "/configured/model")
-            with patch.object(sys, "argv", ["delphi-code", "index", "--model", "/explicit/model"]):
-                self.assertEqual(arguments().model, "/explicit/model")
+            self.assertEqual(model_directory(), Path("/configured/model"))
 
-    def test_cli_uses_default_without_environment(self):
+    def test_default_without_environment(self):
         with (
             patch.dict(os.environ, {}, clear=True),
-            patch("delphi_code.cli.model_directory", return_value=Path("/local/default")),
-            patch.object(sys, "argv", ["delphi-code", "search", "query"]),
+            patch("delphi_code.infrastructure.paths.data_directory", return_value=Path("/local/data")),
         ):
-            self.assertEqual(arguments().model, Path("/local/default"))
+            self.assertEqual(model_directory(), Path("/local/data/models/all-MiniLM-L6-v2"))
+
+    def test_model_flag_is_gone(self):
+        with (
+            patch.object(sys, "argv", ["delphi-code", "index", "--model", "/explicit/model"]),
+            self.assertRaises(Failure),
+        ):
+            arguments()
 
 
 class ModelIdentity(unittest.TestCase):

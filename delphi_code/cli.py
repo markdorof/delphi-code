@@ -2,7 +2,6 @@ import argparse
 from collections.abc import Callable
 from importlib.metadata import version
 import logging
-import os
 from pathlib import Path
 import shutil
 import sys
@@ -54,8 +53,6 @@ def arguments() -> argparse.Namespace:
             default=None if name == "search" else str(Path.cwd()),
             help="Project path, key, or indexed name; search defaults to all indexes",
         )
-        if name != "status":
-            _add_model_option(command)
         if name in {"index", "search"}:
             _add_selection_options(command, indexing=name == "index")
         if name == "search":
@@ -71,10 +68,8 @@ def arguments() -> argparse.Namespace:
     )
     add.add_argument("--ref", help="Branch or tag of remote repositories; defaults to the default branch")
     _add_selection_options(add, indexing=True)
-    _add_model_option(add)
     add.add_argument("--no-sync", action="store_true", help="Only update the registry")
-    sync = add_command_parser("sync", help="Index every tracked project")
-    _add_model_option(sync)
+    add_command_parser("sync", help="Index every tracked project")
     listing = add_command_parser("list", help="List tracked projects and stored indexes")
     listing.add_argument("--indexed", action="store_true", help="Only list projects that have an index")
     remove = add_command_parser("remove", help="Stop tracking a project and delete its index")
@@ -82,7 +77,6 @@ def arguments() -> argparse.Namespace:
     remove.add_argument("--keep-index", action="store_true", help="Only untrack the project")
     setup = add_command_parser("setup", help="Download or import the pinned model and check the installation")
     setup.add_argument("--from", dest="source", help="Import a prepared MiniLM model without network access")
-    _add_model_option(setup, help="Model destination")
     setup.add_argument("--no-connect", action="store_true", help="Do not register the MCP server with agents")
     for name, summary in (
         ("connect", "Register the MCP server with installed agents"),
@@ -95,8 +89,7 @@ def arguments() -> argparse.Namespace:
             metavar="AGENT",
             help="claude-desktop, claude-code, codex, cursor, vscode or gemini; omit for every installed agent",
         )
-    mcp = commands.add_parser("mcp", help="Serve the other commands as MCP tools over stdio")
-    _add_model_option(mcp)
+    commands.add_parser("mcp", help="Serve the other commands as MCP tools over stdio")
     return parser.parse_args()
 
 
@@ -114,7 +107,7 @@ def main():
     try:
         args = arguments()
         if args.command == "mcp":
-            _serve_mcp(args.model)
+            _serve_mcp(_configured_model())
             return
         command, write_json = args.command, output.json_output_requested(json_flag=args.json)
         logger.info("%s started in %s", command, Path.cwd())
@@ -134,20 +127,20 @@ def main():
 
 
 COMMANDS: dict[str, Callable[[argparse.Namespace, Progress], ControllerResponse]] = {
-    "index": lambda args, progress: indexing.index(args.project, _selection(args), args.model, progress),
+    "index": lambda args, progress: indexing.index(args.project, _selection(args), _configured_model(), progress),
     "search": lambda args, progress: searching.search(
-        args.project, SearchRequest(args.query, args.path, args.language, args.limit), args.model
+        args.project, SearchRequest(args.query, args.path, args.language, args.limit), _configured_model()
     ),
     "status": lambda args, progress: project_catalog.status(args.project),
-    "doctor": lambda args, progress: installation.doctor(args.project, args.model),
+    "doctor": lambda args, progress: installation.doctor(args.project, _configured_model()),
     "add": lambda args, progress: indexing.add(
-        args.sources, args.ref, _selection(args), args.model, not args.no_sync, progress, TerminalPrompts()
+        args.sources, args.ref, _selection(args), _configured_model(), not args.no_sync, progress, TerminalPrompts()
     ),
-    "sync": lambda args, progress: indexing.sync(args.model, progress),
+    "sync": lambda args, progress: indexing.sync(_configured_model(), progress),
     "list": lambda args, progress: project_catalog.list_tracked(args.indexed),
     "remove": lambda args, progress: project_catalog.remove(args.name, args.keep_index),
     "setup": lambda args, progress: installation.setup(
-        args.model, args.source, progress, None if args.no_connect else _delphi_code_command()
+        _configured_model(), args.source, progress, None if args.no_connect else _delphi_code_command()
     ),
     "connect": lambda args, progress: installation.connect(_delphi_code_command(), args.agents, progress),
     "disconnect": lambda args, progress: installation.disconnect(_delphi_code_command(), args.agents),
@@ -157,6 +150,10 @@ COMMANDS: dict[str, Callable[[argparse.Namespace, Progress], ControllerResponse]
 def _serve_mcp(model: str):
     logger.info("mcp server started in %s", Path.cwd())
     mcp_server.serve(model)
+
+
+def _configured_model() -> str:
+    return str(model_directory())
 
 
 def _delphi_code_command() -> str:
@@ -185,10 +182,6 @@ def _add_selection_options(command, indexing):
     if indexing:
         command.add_argument("--ignore", action="append", default=[])
         command.add_argument("--max-bytes", type=_positive_integer, default=DEFAULT_MAX_BYTES)
-
-
-def _add_model_option(command, help=None):
-    command.add_argument("--model", default=os.environ.get("DELPHI_CODE_MODEL") or model_directory(), help=help)
 
 
 def _positive_integer(text):

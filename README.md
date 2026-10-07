@@ -55,7 +55,7 @@ uv tool install --managed-python /absolute/path/to/delphi-code
 delphi-code setup
 ```
 
-`setup` downloads the pinned [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) model and checks it against bundled hashes. Running it again reuses a valid model. `--model DIR` or `DELPHI_CODE_MODEL` selects a different location. For an offline machine, import a prepared model directory:
+`setup` downloads the pinned [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) model and checks it against bundled hashes. Running it again reuses a valid model. For an offline machine, import a prepared model directory:
 
 ```sh
 delphi-code setup --from /absolute/path/to/all-MiniLM-L6-v2
@@ -107,18 +107,18 @@ delphi-code list --indexed
 
 | Command | What it does | Options |
 |---|---|---|
-| `setup` | Downloads or imports the model, checks the installation, and connects installed agents. | `--from DIR`, `--model DIR`, `--no-connect` |
-| `doctor` | Checks the model, SQLite extensions, and storage with a real embedding. | `-p`, `--model` |
-| `index` | Builds or incrementally updates a project's index. | `-p`, `--model`, `--path`, `--language`, `--ignore`, `--max-bytes` |
-| `search QUERY` | Runs a natural-language query. Without `-p`, searches every index. | `-p`, `--model`, `--path`, `--language`, `--limit` (default 10) |
+| `setup` | Downloads or imports the model, checks the installation, and connects installed agents. | `--from DIR`, `--no-connect` |
+| `doctor` | Checks the model, SQLite extensions, and storage with a real embedding. | `-p` |
+| `index` | Builds or incrementally updates a project's index. | `-p`, `--path`, `--language`, `--ignore`, `--max-bytes` |
+| `search QUERY` | Runs a natural-language query. Without `-p`, searches every index. | `-p`, `--path`, `--language`, `--limit` (default 10) |
 | `status` | Reports a project's index state. | `-p` |
-| `add [SOURCE ...]` | Tracks and indexes projects or remote repositories; without sources, picks repositories interactively. | `--ref`, `--no-sync`, `--model`, `--path`, `--language`, `--ignore`, `--max-bytes` |
-| `sync` | Indexes every tracked project. | `--model` |
+| `add [SOURCE ...]` | Tracks and indexes projects or remote repositories; without sources, picks repositories interactively. | `--ref`, `--no-sync`, `--path`, `--language`, `--ignore`, `--max-bytes` |
+| `sync` | Indexes every tracked project. | |
 | `list` | Lists tracked projects and stored indexes. | `--indexed` |
 | `remove NAME` | Stops tracking a project and deletes its index. | `--keep-index` |
 | `connect [AGENT ...]` | Adds the MCP server to installed agents' configs, never replacing an existing entry. | |
 | `disconnect [AGENT ...]` | Removes what `connect` added. | |
-| `mcp` | Serves the commands above, except `connect` and `disconnect`, as MCP tools over stdio, with the same names and options. | `--model` |
+| `mcp` | Serves the commands above, except `connect` and `disconnect`, as MCP tools over stdio, with the same names and options. | |
 
 Every command accepts `--json` and `--help`. `--path`, `--language`, and `--ignore` can be repeated.
 
@@ -169,7 +169,7 @@ Higher `score` means a closer match.
 
 ## Models
 
-The default model, MiniLM, is small and general-purpose. Any local SentenceTransformers model with safetensors weights and no custom code can be used through `--model` or `DELPHI_CODE_MODEL`. Searching an index with a different model fails instead of returning wrong results.
+The default model, MiniLM, is small and general-purpose. Any local SentenceTransformers model with safetensors weights and no custom code can be used through `DELPHI_CODE_MODEL`. Searching an index with a different model fails instead of returning wrong results.
 
 ## Storage and logs
 

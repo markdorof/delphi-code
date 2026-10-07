@@ -3,7 +3,6 @@ import fcntl
 import json
 import logging
 from pathlib import Path
-import shlex
 import shutil
 import tempfile
 
@@ -49,7 +48,7 @@ def provision(model_location: str, import_from: str | None = None, progress: Pro
             except Failure as exc:
                 raise Failure(
                     exc.code,
-                    f"{exc}. Existing assets were preserved. Move {destination} aside, then rerun delphi-code setup --model {shlex.quote(str(destination))}",
+                    f"{exc}. Existing assets were preserved. Move {destination} aside, then rerun delphi-code setup",
                     ExitCode.RUNTIME_ASSETS,
                 ) from exc
             progress.stage_started(Stage.CHECKING_INSTALLATION)

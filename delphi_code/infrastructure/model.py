@@ -4,7 +4,6 @@ from functools import cached_property
 import hashlib
 import json
 from pathlib import Path
-import shlex
 from typing import TYPE_CHECKING, NamedTuple
 
 from ..domain.errors import ExitCode, Failure
@@ -37,7 +36,7 @@ class LocalModel:
     @classmethod
     def inspect(cls, location: str | Path | None) -> LocalModel:
         if not location:
-            raise _model_failure("model_missing", "Supply --model /absolute/local/model or DELPHI_CODE_MODEL")
+            raise _model_failure("model_missing", "Set DELPHI_CODE_MODEL to a local model directory")
         directory = Path(location).expanduser().resolve()
         file_stats = _asset_file_stats(directory)
         reusable = _models_inspected_in_this_process.get(directory)
@@ -102,8 +101,8 @@ def _validate_layout(directory: Path):
     if not directory.is_dir() or not (directory / "modules.json").is_file():
         raise _model_failure(
             "model_missing",
-            f"Local SentenceTransformers assets missing: {directory}. Run delphi-code setup --model {shlex.quote(str(directory))}, "
-            "or set --model /local/model or DELPHI_CODE_MODEL to prepared assets; downloads are never automatic.",
+            f"Local SentenceTransformers assets missing: {directory}. Run delphi-code setup, "
+            "or set DELPHI_CODE_MODEL to prepared assets; downloads are never automatic.",
         )
     modules = json.loads((directory / "modules.json").read_text())
     if not isinstance(modules, list) or not modules:

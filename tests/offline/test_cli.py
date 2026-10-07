@@ -55,9 +55,8 @@ class OfflineCLI(unittest.TestCase):
         command = [sys.executable, "-m", "delphi_code", *args]
         if project:
             command.extend(["--project", str(self.project)])
-        if args[0] not in {"status", "list", "remove"}:
-            command.extend(["--model", str(model)])
-        result = subprocess.run(command, env=env or self.env, text=True, capture_output=True, timeout=120)
+        env = dict(env or self.env, DELPHI_CODE_MODEL=str(model))
+        result = subprocess.run(command, env=env, text=True, capture_output=True, timeout=120)
         self.assertEqual(result.returncode, code, result.stderr + result.stdout)
         payload = json.loads(result.stdout)
         self.assertEqual(payload["schema_version"], 1)
@@ -72,9 +71,10 @@ class OfflineCLI(unittest.TestCase):
 
     def test_setup_import_and_reuse(self):
         destination = self.base / "provisioned-model"
-        command = [sys.executable, "-m", "delphi_code", "setup", "--from", MODEL, "--model", str(destination)]
+        command = [sys.executable, "-m", "delphi_code", "setup", "--from", MODEL]
+        env = dict(self.env, DELPHI_CODE_MODEL=str(destination))
         for reused in (False, True):
-            result = subprocess.run(command, env=self.env, text=True, capture_output=True, timeout=120)
+            result = subprocess.run(command, env=env, text=True, capture_output=True, timeout=120)
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
             payload = json.loads(result.stdout)
             self.assertEqual(payload["data"]["reused"], reused)

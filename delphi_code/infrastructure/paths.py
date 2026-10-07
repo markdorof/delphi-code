@@ -10,7 +10,9 @@ def data_directory():
 
 
 def model_directory():
-    return data_directory() / "models/all-MiniLM-L6-v2"
+    return (
+        Path(os.environ.get("DELPHI_CODE_MODEL") or data_directory() / "models/all-MiniLM-L6-v2").expanduser().resolve()
+    )
 
 
 def index_root():
