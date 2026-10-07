@@ -160,6 +160,9 @@ class TerminalProgress(Progress):
     def model_setup_finished(self, reused: bool):
         self._line.end("✓", "already installed" if reused else "installed")
 
+    def agents_connection_started(self):
+        self._line.begin("Connecting agents")
+
 
 def _columns() -> int:
     return shutil.get_terminal_size().columns - 1

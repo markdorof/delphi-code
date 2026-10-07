@@ -18,12 +18,13 @@ print_usage() {
   cat <<'USAGE'
 Installs delphi-code with uv, installing uv first if it is missing.
 
-Usage: install.sh [--version VERSION] [--no-setup]
+Usage: install.sh [--version VERSION] [--no-setup] [--no-connect]
 
   --version VERSION  Install this release instead of the default one.
   --no-setup         Skip downloading the embedding model (run `delphi-code setup` later).
+  --no-connect       Skip registering the MCP server with installed agents (run `delphi-code connect` later).
 
-Environment: DELPHI_CODE_VERSION and DELPHI_CODE_NO_SETUP=1 work like the options.
+Environment: DELPHI_CODE_VERSION, DELPHI_CODE_NO_SETUP=1 and DELPHI_CODE_NO_CONNECT=1 work like the options.
 When piping into sh, pass options after `sh -s --`.
 USAGE
 }
@@ -104,6 +105,10 @@ main() {
   if [ -n "${DELPHI_CODE_NO_SETUP:-}" ]; then
     setup_requested=no
   fi
+  connect_requested=yes
+  if [ -n "${DELPHI_CODE_NO_CONNECT:-}" ]; then
+    connect_requested=no
+  fi
 
   while [ $# -gt 0 ]; do
     case "$1" in
@@ -118,6 +123,10 @@ main() {
         ;;
       --no-setup)
         setup_requested=no
+        shift
+        ;;
+      --no-connect)
+        connect_requested=no
         shift
         ;;
       -h | --help)
@@ -138,11 +147,17 @@ main() {
   tool_bin_dir=$("$uv" tool dir --bin)
   delphi_code="$tool_bin_dir/delphi-code"
 
-  if [ "$setup_requested" = yes ]; then
-    say "downloading and verifying the embedding model"
+  if [ "$setup_requested" = yes ] && [ "$connect_requested" = yes ]; then
+    say "downloading the embedding model and connecting installed agents"
     "$delphi_code" setup </dev/null
+  elif [ "$setup_requested" = yes ]; then
+    say "downloading and verifying the embedding model"
+    "$delphi_code" setup --no-connect </dev/null
   else
     say "skipped model setup; run \`delphi-code setup\` before indexing"
+    if [ "$connect_requested" = yes ]; then
+      "$delphi_code" connect </dev/null || say "warning: connecting agents failed; run \`delphi-code connect\` later"
+    fi
   fi
 
   print_path_hint_if_missing "$tool_bin_dir"

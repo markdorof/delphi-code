@@ -51,5 +51,8 @@ class Progress:
     def model_setup_finished(self, reused: bool):
         pass
 
+    def agents_connection_started(self):
+        pass
+
 
 SILENT = Progress()

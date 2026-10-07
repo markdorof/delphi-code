@@ -110,7 +110,7 @@ jobs:
       - name: Install the built wheel with the script on a machine without uv
         run: |
           clean_home="$RUNNER_TEMP/clean-home"
-          mkdir "$clean_home"
+          mkdir -p "$clean_home/.cursor"
           echo "DELPHI_CODE_CLEAN_HOME=$clean_home" >> "$GITHUB_ENV"
           env -i HOME="$clean_home" PATH=/usr/bin:/bin:/usr/sbin:/sbin UV_FIND_LINKS="$GITHUB_WORKSPACE/dist" \
             sh -s < release-assets/install.sh
@@ -120,6 +120,8 @@ jobs:
             env -i HOME="$DELPHI_CODE_CLEAN_HOME" PATH=/usr/bin:/bin "$DELPHI_CODE_CLEAN_HOME/.local/bin/delphi-code" "$@"
           }
           test "$(run_installed --version)" = "delphi-code $DELPHI_CODE_BUILT_VERSION"
+          python3 -c "import json, sys; s = json.load(open(sys.argv[1]))['mcpServers']['delphi-code']; assert s == {'command': sys.argv[2], 'args': ['mcp']}, s" \
+            "$DELPHI_CODE_CLEAN_HOME/.cursor/mcp.json" "$DELPHI_CODE_CLEAN_HOME/.local/bin/delphi-code"
           mkdir "$RUNNER_TEMP/smoke-project"
           echo 'def authenticate_user(password, expected): return password == expected' > "$RUNNER_TEMP/smoke-project/auth.py"
           run_installed index -p "$RUNNER_TEMP/smoke-project" --json

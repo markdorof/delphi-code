@@ -24,9 +24,9 @@ delphi-code index -p /absolute/path/to/project
 delphi-code search 'where are user passwords checked?'
 ```
 
-`setup` downloads and verifies the embedding model once; after that, every command runs offline. Without `-p`, `search` looks through every indexed project.
+`setup` downloads and verifies the embedding model once and connects your agents; after that, every command runs offline. Without `-p`, `search` looks through every indexed project.
 
-To use it from an agent, connect the agent to the MCP server, which keeps the model loaded so repeated searches are near-instant, and give it the [skill](https://github.com/markdorof/delphi-code/blob/main/plugin/skills/delphi-code/SKILL.md), which tells it when to search by meaning instead of grep:
+To use it from an agent, connect the agent to the MCP server, which keeps the model loaded so repeated searches are near-instant, and give it the [skill](https://github.com/markdorof/delphi-code/blob/main/plugin/skills/delphi-code/SKILL.md), which tells it when to search by meaning instead of grep. `setup` connects every agent it finds (Claude Desktop, Claude Code through the plugin, Codex, Cursor, VS Code, Gemini CLI); run `delphi-code connect` after installing a new one. To set one up by hand:
 
 | Agent | Setup |
 |---|---|
@@ -46,7 +46,7 @@ The Claude Code and Codex plugins include both. For the others, also copy the sk
 
 ## Installation
 
-The install script runs the same `uv tool install --managed-python delphi-code` and `delphi-code setup` as the uv option. Pass options after `sh -s --`: `--no-setup` skips the model download, `--version VERSION` picks a release. Running it again upgrades.
+The install script runs the same `uv tool install --managed-python delphi-code` and `delphi-code setup` as the uv option. Pass options after `sh -s --`: `--no-setup` skips the model download, `--no-connect` leaves agent configs alone, `--version VERSION` picks a release. Running it again upgrades.
 
 From a checkout, with uv:
 
@@ -72,9 +72,12 @@ See [GitHub Releases](https://github.com/markdorof/delphi-code/releases) for cha
 ### Uninstalling
 
 ```sh
+delphi-code disconnect
 uv tool uninstall delphi-code
 rm -rf ~/Library/Application\ Support/delphi-code
 ```
+
+`disconnect` removes what `connect` added to your agents and leaves entries you added yourself.
 
 On Linux the data directory is `$XDG_DATA_HOME/delphi-code` or `~/.local/share/delphi-code`.
 
@@ -104,7 +107,7 @@ delphi-code list --indexed
 
 | Command | What it does | Options |
 |---|---|---|
-| `setup` | Downloads or imports the model and checks the installation. | `--from DIR`, `--model DIR` |
+| `setup` | Downloads or imports the model, checks the installation, and connects installed agents. | `--from DIR`, `--model DIR`, `--no-connect` |
 | `doctor` | Checks the model, SQLite extensions, and storage with a real embedding. | `-p`, `--model` |
 | `index` | Builds or incrementally updates a project's index. | `-p`, `--model`, `--path`, `--language`, `--ignore`, `--max-bytes` |
 | `search QUERY` | Runs a natural-language query. Without `-p`, searches every index. | `-p`, `--model`, `--path`, `--language`, `--limit` (default 10) |
@@ -113,7 +116,9 @@ delphi-code list --indexed
 | `sync` | Indexes every tracked project. | `--model` |
 | `list` | Lists tracked projects and stored indexes. | `--indexed` |
 | `remove NAME` | Stops tracking a project and deletes its index. | `--keep-index` |
-| `mcp` | Serves the commands above as MCP tools over stdio, with the same names and options. | `--model` |
+| `connect [AGENT ...]` | Adds the MCP server to installed agents' configs, never replacing an existing entry. | |
+| `disconnect [AGENT ...]` | Removes what `connect` added. | |
+| `mcp` | Serves the commands above, except `connect` and `disconnect`, as MCP tools over stdio, with the same names and options. | `--model` |
 
 Every command accepts `--json` and `--help`. `--path`, `--language`, and `--ignore` can be repeated.
 

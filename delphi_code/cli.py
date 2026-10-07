@@ -4,6 +4,7 @@ from importlib.metadata import version
 import logging
 import os
 from pathlib import Path
+import shutil
 import sys
 import time
 
@@ -82,7 +83,19 @@ def arguments() -> argparse.Namespace:
     setup = add_command_parser("setup", help="Download or import the pinned model and check the installation")
     setup.add_argument("--from", dest="source", help="Import a prepared MiniLM model without network access")
     _add_model_option(setup, help="Model destination")
-    mcp = commands.add_parser("mcp", help="Serve every command as an MCP tool over stdio")
+    setup.add_argument("--no-connect", action="store_true", help="Do not register the MCP server with agents")
+    for name, summary in (
+        ("connect", "Register the MCP server with installed agents"),
+        ("disconnect", "Remove what connect registered, before uninstalling"),
+    ):
+        command = add_command_parser(name, help=summary)
+        command.add_argument(
+            "agents",
+            nargs="*",
+            metavar="AGENT",
+            help="claude-desktop, claude-code, codex, cursor, vscode or gemini; omit for every installed agent",
+        )
+    mcp = commands.add_parser("mcp", help="Serve the other commands as MCP tools over stdio")
     _add_model_option(mcp)
     return parser.parse_args()
 
@@ -133,13 +146,25 @@ COMMANDS: dict[str, Callable[[argparse.Namespace, Progress], ControllerResponse]
     "sync": lambda args, progress: indexing.sync(args.model, progress),
     "list": lambda args, progress: project_catalog.list_tracked(args.indexed),
     "remove": lambda args, progress: project_catalog.remove(args.name, args.keep_index),
-    "setup": lambda args, progress: installation.setup(args.model, args.source, progress),
+    "setup": lambda args, progress: installation.setup(
+        args.model, args.source, progress, None if args.no_connect else _delphi_code_command()
+    ),
+    "connect": lambda args, progress: installation.connect(_delphi_code_command(), args.agents, progress),
+    "disconnect": lambda args, progress: installation.disconnect(_delphi_code_command(), args.agents),
 }
 
 
 def _serve_mcp(model: str):
     logger.info("mcp server started in %s", Path.cwd())
     mcp_server.serve(model)
+
+
+def _delphi_code_command() -> str:
+    # Agents started from the Dock do not see the shell's PATH, so they need the full path.
+    invoked = Path(sys.argv[0])
+    if invoked.name == "delphi-code":
+        return str(invoked.absolute())
+    return shutil.which("delphi-code") or "delphi-code"
 
 
 def _log_failure(command: str | None, exc: Exception, failure: Failure, seconds: float):
