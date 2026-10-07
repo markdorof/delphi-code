@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import replace
 import json
 import os
@@ -36,6 +37,8 @@ class AgentConfig(Protocol):
 
     def disconnect(self, command: str) -> AgentConnection: ...
 
+    def configured(self) -> bool: ...
+
 
 class JsonServersFile:
     def __init__(
@@ -43,18 +46,18 @@ class JsonServersFile:
         name: str,
         title: str,
         app_directory: Path | None,
-        file_name: str,
+        file_names: tuple[str, ...],
         servers_key: str,
         skills_directory: Path | None = None,
-        **entry_fields: str,
+        server_entry: Callable[[str], dict] = lambda command: {"command": command, "args": SERVER_ARGUMENTS},
     ):
         self.name = name
         self.title = title
         self.skills_directory = skills_directory
         self._app_directory = app_directory
-        self._file_name = file_name
+        self._file_names = file_names
         self._servers_key = servers_key
-        self._entry_fields = entry_fields
+        self._server_entry = server_entry
 
     def installed(self) -> bool:
         return self._app_directory is not None and self._app_directory.is_dir()
@@ -66,7 +69,7 @@ class JsonServersFile:
         path, settings, servers = loaded
         if SERVER_NAME in servers:
             return self._result(Outcome.ALREADY_CONFIGURED, path)
-        servers[SERVER_NAME] = {**self._entry_fields, "command": command, "args": SERVER_ARGUMENTS}
+        servers[SERVER_NAME] = self._server_entry(command)
         return self._save(path, settings, Outcome.ADDED)
 
     def disconnect(self, command: str) -> AgentConnection:
@@ -77,15 +80,20 @@ class JsonServersFile:
         entry = servers.get(SERVER_NAME)
         if entry is None:
             return self._result(Outcome.NOT_CONFIGURED, path)
-        if not isinstance(entry, dict) or entry.get("command") != command:
+        if not isinstance(entry, dict) or entry.get("command") != self._server_entry(command)["command"]:
             return self._result(Outcome.KEPT, path, NOT_ADDED_BY_CONNECT)
         del servers[SERVER_NAME]
         return self._save(path, settings, Outcome.REMOVED)
 
+    def configured(self) -> bool:
+        loaded = self._load()
+        return not isinstance(loaded, AgentConnection) and SERVER_NAME in loaded[2]
+
     def _load(self) -> tuple[Path, dict, dict] | AgentConnection:
         if self._app_directory is None:
             return self._result(Outcome.NOT_FOUND)
-        path = self._app_directory / self._file_name
+        candidates = [self._app_directory / file_name for file_name in self._file_names]
+        path = next((candidate for candidate in candidates if candidate.exists()), candidates[0])
         try:
             settings = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -141,6 +149,13 @@ class CodexConfig:
             return self._result(Outcome.KEPT, path, NOT_ADDED_BY_CONNECT)
         remaining = text.replace(table, "", 1).rstrip("\n")
         return self._save(path, remaining + "\n" if remaining else "", Outcome.REMOVED)
+
+    def configured(self) -> bool:
+        loaded = self._load()
+        if isinstance(loaded, AgentConnection):
+            return False
+        settings = loaded[2]
+        return SERVER_NAME in settings.get("mcp_servers", {}) or PLUGIN_ID in settings.get("plugins", {})
 
     def _load(self) -> tuple[Path, str, dict] | AgentConnection:
         path = self._codex_home / "config.toml"
@@ -204,6 +219,12 @@ class ClaudeCodePlugin:
             return self._result(Outcome.FAILED, str(exc))
         return self._result(Outcome.REMOVED)
 
+    def configured(self) -> bool:
+        try:
+            return self._installed_plugin_scope() is not None or self._has_standalone_server()
+        except _ClaudeCliFailure:
+            return False
+
     def _installed_plugin_scope(self) -> str | None:
         listing = self._claude("plugin", "list", "--json").stdout
         try:
@@ -243,15 +264,31 @@ def supported_agents() -> list[AgentConfig]:
             "claude-desktop",
             "Claude Desktop",
             _macos_application_support("Claude"),
-            "claude_desktop_config.json",
+            ("claude_desktop_config.json",),
             "mcpServers",
         ),
         ClaudeCodePlugin(),
         CodexConfig(Path(os.environ.get("CODEX_HOME") or home / ".codex").expanduser(), home / ".agents/skills"),
-        JsonServersFile("cursor", "Cursor", home / ".cursor", "mcp.json", "mcpServers", home / ".cursor/skills"),
-        JsonServersFile("vscode", "VS Code", _vscode_user_directory(), "mcp.json", "servers", type="stdio"),
+        JsonServersFile("cursor", "Cursor", home / ".cursor", ("mcp.json",), "mcpServers", home / ".cursor/skills"),
         JsonServersFile(
-            "gemini", "Gemini CLI", home / ".gemini", "settings.json", "mcpServers", home / ".gemini/skills"
+            "vscode",
+            "VS Code",
+            _vscode_user_directory(),
+            ("mcp.json",),
+            "servers",
+            server_entry=lambda command: {"type": "stdio", "command": command, "args": SERVER_ARGUMENTS},
+        ),
+        JsonServersFile(
+            "gemini", "Gemini CLI", home / ".gemini", ("settings.json",), "mcpServers", home / ".gemini/skills"
+        ),
+        JsonServersFile(
+            "opencode",
+            "OpenCode",
+            _xdg_config_home() / "opencode",
+            ("opencode.json", "opencode.jsonc"),
+            "mcp",
+            home / ".agents/skills",
+            server_entry=lambda command: {"type": "local", "command": [command, *SERVER_ARGUMENTS], "enabled": True},
         ),
     ]
 
@@ -286,7 +323,11 @@ def _macos_application_support(app: str) -> Path | None:
 def _vscode_user_directory() -> Path:
     if sys.platform == "darwin":
         return Path.home() / "Library/Application Support/Code/User"
-    return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config").expanduser() / "Code/User"
+    return _xdg_config_home() / "Code/User"
+
+
+def _xdg_config_home() -> Path:
+    return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config").expanduser()
 
 
 def _write_keeping_a_backup(path: Path, text: str):

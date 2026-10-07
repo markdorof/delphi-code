@@ -87,7 +87,7 @@ def arguments() -> argparse.Namespace:
             "agents",
             nargs="*",
             metavar="AGENT",
-            help="claude-desktop, claude-code, codex, cursor, vscode or gemini; omit for every installed agent",
+            help="claude-desktop, claude-code, codex, cursor, vscode, gemini or opencode; omit for every installed agent",
         )
     commands.add_parser("mcp", help="Serve the other commands as MCP tools over stdio")
     return parser.parse_args()

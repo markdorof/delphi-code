@@ -1,6 +1,6 @@
 from ..text_layout import TextStyle, home_abbreviated
 
-SUPPORTED_AGENTS_HINT = "Supported: Claude Desktop, Claude Code, Codex, Cursor, VS Code and Gemini CLI"
+SUPPORTED_AGENTS_HINT = "Supported: Claude Desktop, Claude Code, Codex, Cursor, VS Code, Gemini CLI and OpenCode"
 RESTART_HINT = "Restart running agents to apply the change."
 OUTCOMES_THAT_CHANGE_AN_AGENT = {"added", "removed"}
 

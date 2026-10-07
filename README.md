@@ -26,7 +26,7 @@ delphi-code search 'where are user passwords checked?'
 
 `setup` downloads and verifies the embedding model once and connects your agents; after that, every command runs offline. Without `-p`, `search` looks through every indexed project.
 
-To use it from an agent, connect the agent to the MCP server, which keeps the model loaded so repeated searches are near-instant, and give it the [skill](https://github.com/markdorof/delphi-code/blob/main/plugin/skills/delphi-code/SKILL.md), which tells it when to search by meaning instead of grep. `setup` connects every agent it finds (Claude Desktop, Claude Code through the plugin, Codex, Cursor, VS Code, Gemini CLI) and installs the skill for Codex, Cursor and Gemini CLI; run `delphi-code connect` after installing a new one. To set one up by hand:
+To use it from an agent, connect the agent to the MCP server, which keeps the model loaded so repeated searches are near-instant, and give it the [skill](https://github.com/markdorof/delphi-code/blob/main/plugin/skills/delphi-code/SKILL.md), which tells it when to search by meaning instead of grep. `setup` connects every agent it finds (Claude Desktop, Claude Code through the plugin, Codex, Cursor, VS Code, Gemini CLI, OpenCode) and installs the skill for Codex, Cursor, Gemini CLI and OpenCode; run `delphi-code connect` after installing a new one. To set one up by hand:
 
 | Agent | Setup |
 |---|---|
@@ -35,6 +35,7 @@ To use it from an agent, connect the agent to the MCP server, which keeps the mo
 | Cursor | Add `{"mcpServers": {"delphi-code": {"type": "stdio", "command": "delphi-code", "args": ["mcp"]}}}` to `~/.cursor/mcp.json` |
 | VS Code (Copilot) | `code --add-mcp '{"name": "delphi-code", "command": "delphi-code", "args": ["mcp"]}'` |
 | Gemini CLI | `gemini mcp add delphi-code delphi-code mcp` |
+| OpenCode | Add `{"mcp": {"delphi-code": {"type": "local", "command": ["delphi-code", "mcp"]}}}` to `~/.config/opencode/opencode.json` |
 
 The Claude Code and Codex plugins include both. When setting up by hand, also copy the skill into the agent's skills folder, such as `~/.agents/skills/delphi-code/SKILL.md` for Codex.
 

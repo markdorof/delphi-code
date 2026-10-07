@@ -202,6 +202,33 @@ class ConnectAgents(unittest.TestCase):
         self.assertFalse(any(directory.exists() for directory in skills.values()))
         self.assertTrue((self.home / ".cursor/skills").is_dir())
 
+    def test_adds_opencode_with_its_command_list_and_prefers_an_existing_jsonc_config(self):
+        opencode = self.home / ".config/opencode"
+        opencode.mkdir(parents=True)
+        self.assertEqual(self.outcomes(), {"opencode": "added"})
+        self.assertEqual(
+            json.loads((opencode / "opencode.json").read_text())["mcp"]["delphi-code"],
+            {"type": "local", "command": [COMMAND, "mcp"], "enabled": True},
+        )
+        self.assertEqual(self.outcomes(change=disconnect), {"opencode": "removed"})
+        (opencode / "opencode.json").unlink()
+        (opencode / "opencode.jsonc").write_text('{"$schema": "https://opencode.ai/config.json"}')
+        self.assertEqual(self.outcomes(), {"opencode": "added"})
+        self.assertIn("delphi-code", json.loads((opencode / "opencode.jsonc").read_text())["mcp"])
+        self.assertFalse((opencode / "opencode.json").exists())
+
+    def test_keeps_the_skill_codex_and_opencode_share_until_both_are_disconnected(self):
+        (self.home / ".codex").mkdir()
+        (self.home / ".config/opencode").mkdir(parents=True)
+        shared_skill = self.home / ".agents/skills/delphi-code/SKILL.md"
+        self.outcomes()
+        self.assertTrue(shared_skill.exists())
+        (codex,) = disconnect(COMMAND, ["codex"]).data["agents"]
+        self.assertEqual((codex["outcome"], codex["skill"]), ("removed", None))
+        self.assertTrue(shared_skill.exists())
+        disconnect(COMMAND, ["opencode"])
+        self.assertFalse(shared_skill.exists())
+
     def test_agents_without_a_skills_folder_get_only_the_server(self):
         (self.home / "Library/Application Support/Code/User").mkdir(parents=True)
         (self.home / ".config/Code/User").mkdir(parents=True)
