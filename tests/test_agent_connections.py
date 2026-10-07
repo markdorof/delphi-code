@@ -15,6 +15,9 @@ from delphi_code.services.progress import SILENT
 from delphi_code.ui.text_layout import TextStyle
 
 COMMAND = "/opt/bin/delphi-code"
+REPOSITORY = Path(__file__).resolve().parent.parent
+PLUGIN_SKILL = REPOSITORY / "plugin/skills/delphi-code/SKILL.md"
+PACKAGED_SKILL = REPOSITORY / "delphi_code/infrastructure/SKILL.md"
 PROVISIONED = {"model": "/models/m", "index_root": "/indexes", "reused": True, "diagnostics": {}}
 UNCOLORED = TextStyle(colors_enabled=False)
 FAKE_CLAUDE = """#!/bin/sh
@@ -172,6 +175,38 @@ class ConnectAgents(unittest.TestCase):
         (self.home / ".codex").mkdir()
         (self.home / ".codex/config.toml").write_text('[plugins."delphi-code@delphi-code"]\nenabled = true\n')
         self.assertEqual(self.outcomes(), {"codex": "already_configured"})
+        self.assertFalse((self.home / ".agents/skills/delphi-code").exists())
+
+    def test_the_packaged_skill_matches_the_plugin_skill(self):
+        self.assertEqual(PACKAGED_SKILL.read_text(), PLUGIN_SKILL.read_text())
+
+    def test_installs_and_refreshes_the_skill_where_each_agent_reads_skills(self):
+        for directory in (".codex", ".cursor", ".gemini"):
+            (self.home / directory).mkdir()
+        stale = self.home / ".cursor/skills/delphi-code/SKILL.md"
+        stale.parent.mkdir(parents=True)
+        stale.write_text("an older skill")
+        connections = connect(COMMAND, []).data["agents"]
+        skills = {
+            "codex": self.home / ".agents/skills/delphi-code",
+            "cursor": self.home / ".cursor/skills/delphi-code",
+            "gemini": self.home / ".gemini/skills/delphi-code",
+        }
+        self.assertEqual({c["agent"]: c["skill"] for c in connections}, {a: str(d) for a, d in skills.items()})
+        for directory in skills.values():
+            self.assertEqual((directory / "SKILL.md").read_text(), PLUGIN_SKILL.read_text())
+        self.assertIn("skill in ~/.agents/skills/delphi-code", connect(COMMAND, ["codex"]).views[0].lines(UNCOLORED)[0])
+
+        disconnected = disconnect(COMMAND, []).data["agents"]
+        self.assertEqual({c["agent"]: c["skill"] for c in disconnected}, {a: str(d) for a, d in skills.items()})
+        self.assertFalse(any(directory.exists() for directory in skills.values()))
+        self.assertTrue((self.home / ".cursor/skills").is_dir())
+
+    def test_agents_without_a_skills_folder_get_only_the_server(self):
+        (self.home / "Library/Application Support/Code/User").mkdir(parents=True)
+        (self.home / ".config/Code/User").mkdir(parents=True)
+        (connection,) = connect(COMMAND, ["vscode"]).data["agents"]
+        self.assertEqual((connection["outcome"], connection["skill"]), ("added", None))
 
     def test_setup_connects_agents_unless_asked_not_to(self):
         (self.home / ".cursor").mkdir()

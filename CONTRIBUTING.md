@@ -73,7 +73,7 @@ The `tests/offline` suite launches real CLI subprocesses under OS network denial
 
 ## Claude Code plugin
 
-The plugin lives in `plugin/` in two formats that share `skills/`: Claude Code's (`.claude-plugin/plugin.json`, `.mcp.json`, listed by `.claude-plugin/marketplace.json` at the repository root) and the open [Agent Plugins](https://agent-plugins.org) 1.0.0 format that Codex and Cursor read (`plugin.json`, `mcp.json`, listed for Codex by `.agents/plugins/marketplace.json`). Keep the descriptions and server command in sync. Neither has a `version`, so users get each commit. Check Claude Code's with `claude plugin validate .` and try it with `claude --plugin-dir ./plugin`; check the portable files against the schemas in the [spec repository](https://github.com/agentplugins/agent-plugins-spec).
+The plugin lives in `plugin/` in two formats that share `skills/`: Claude Code's (`.claude-plugin/plugin.json`, `.mcp.json`, listed by `.claude-plugin/marketplace.json` at the repository root) and the open [Agent Plugins](https://agent-plugins.org) 1.0.0 format that Codex and Cursor read (`plugin.json`, `mcp.json`, listed for Codex by `.agents/plugins/marketplace.json`). Keep the descriptions and server command in sync. `delphi_code/infrastructure/SKILL.md` is a copy of the plugin's skill that `connect` installs for agents without a plugin; a test fails when the two differ. Neither has a `version`, so users get each commit. Check Claude Code's with `claude plugin validate .` and try it with `claude --plugin-dir ./plugin`; check the portable files against the schemas in the [spec repository](https://github.com/agentplugins/agent-plugins-spec).
 
 ## Third-party notices
 

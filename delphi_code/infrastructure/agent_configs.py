@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 import json
 import os
 from pathlib import Path
@@ -16,6 +17,7 @@ SERVER_ARGUMENTS = ["mcp"]
 PLUGIN_ID = "delphi-code@delphi-code"
 PLUGIN_MARKETPLACE = "delphi-code"
 PLUGIN_MARKETPLACE_SOURCE = "markdorof/delphi-code"
+SKILL_FILE = Path(__file__).with_name("SKILL.md")
 BACKUP_SUFFIX = ".delphi-code-backup"
 CLAUDE_CLI_TIMEOUT_SECONDS = 180
 NOT_ADDED_BY_CONNECT = "not added by delphi-code connect; remove it by hand if unwanted"
@@ -24,6 +26,9 @@ NOT_ADDED_BY_CONNECT = "not added by delphi-code connect; remove it by hand if u
 class AgentConfig(Protocol):
     name: str
     title: str
+
+    @property
+    def skills_directory(self) -> Path | None: ...
 
     def installed(self) -> bool: ...
 
@@ -34,10 +39,18 @@ class AgentConfig(Protocol):
 
 class JsonServersFile:
     def __init__(
-        self, name: str, title: str, app_directory: Path | None, file_name: str, servers_key: str, **entry_fields: str
+        self,
+        name: str,
+        title: str,
+        app_directory: Path | None,
+        file_name: str,
+        servers_key: str,
+        skills_directory: Path | None = None,
+        **entry_fields: str,
     ):
         self.name = name
         self.title = title
+        self.skills_directory = skills_directory
         self._app_directory = app_directory
         self._file_name = file_name
         self._servers_key = servers_key
@@ -97,8 +110,9 @@ class CodexConfig:
     name = "codex"
     title = "Codex"
 
-    def __init__(self, codex_home: Path):
+    def __init__(self, codex_home: Path, skills_directory: Path):
         self._codex_home = codex_home
+        self.skills_directory = skills_directory
 
     def installed(self) -> bool:
         return self._codex_home.is_dir()
@@ -108,7 +122,9 @@ class CodexConfig:
         if isinstance(loaded, AgentConnection):
             return loaded
         path, text, settings = loaded
-        if SERVER_NAME in settings.get("mcp_servers", {}) or PLUGIN_ID in settings.get("plugins", {}):
+        if PLUGIN_ID in settings.get("plugins", {}):
+            return replace(self._result(Outcome.ALREADY_CONFIGURED, path), plugin_brings_the_skill=True)
+        if SERVER_NAME in settings.get("mcp_servers", {}):
             return self._result(Outcome.ALREADY_CONFIGURED, path)
         separator = "" if not text or text.endswith("\n\n") else "\n" if text.endswith("\n") else "\n\n"
         return self._save(path, text + separator + _codex_server_table(command), Outcome.ADDED)
@@ -153,6 +169,8 @@ class ClaudeCodePlugin:
     name = "claude-code"
     title = "Claude Code"
     config = f"plugin {PLUGIN_ID}"
+    # The plugin brings the skill.
+    skills_directory = None
 
     def installed(self) -> bool:
         return shutil.which("claude") is not None
@@ -229,11 +247,31 @@ def supported_agents() -> list[AgentConfig]:
             "mcpServers",
         ),
         ClaudeCodePlugin(),
-        CodexConfig(Path(os.environ.get("CODEX_HOME") or home / ".codex").expanduser()),
-        JsonServersFile("cursor", "Cursor", home / ".cursor", "mcp.json", "mcpServers"),
+        CodexConfig(Path(os.environ.get("CODEX_HOME") or home / ".codex").expanduser(), home / ".agents/skills"),
+        JsonServersFile("cursor", "Cursor", home / ".cursor", "mcp.json", "mcpServers", home / ".cursor/skills"),
         JsonServersFile("vscode", "VS Code", _vscode_user_directory(), "mcp.json", "servers", type="stdio"),
-        JsonServersFile("gemini", "Gemini CLI", home / ".gemini", "settings.json", "mcpServers"),
+        JsonServersFile(
+            "gemini", "Gemini CLI", home / ".gemini", "settings.json", "mcpServers", home / ".gemini/skills"
+        ),
     ]
+
+
+def install_skill(skills_directory: Path) -> Path:
+    skill_directory = skills_directory / SERVER_NAME
+    skill_directory.mkdir(parents=True, exist_ok=True)
+    (skill_directory / SKILL_FILE.name).write_text(SKILL_FILE.read_text(encoding="utf-8"), encoding="utf-8")
+    return skill_directory
+
+
+def remove_skill(skills_directory: Path) -> Path | None:
+    skill_directory = skills_directory / SERVER_NAME
+    skill = skill_directory / SKILL_FILE.name
+    if not skill.exists():
+        return None
+    skill.unlink()
+    if not any(skill_directory.iterdir()):
+        skill_directory.rmdir()
+    return skill_directory
 
 
 def _codex_server_table(command: str) -> str:

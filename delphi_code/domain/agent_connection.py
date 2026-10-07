@@ -19,3 +19,5 @@ class AgentConnection:
     outcome: Outcome
     config: str | None = None
     detail: str | None = None
+    skill: str | None = None
+    plugin_brings_the_skill: bool = False

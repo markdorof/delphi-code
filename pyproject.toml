@@ -50,7 +50,7 @@ delphi-code = "delphi_code.cli:main"
 include = ["delphi_code*"]
 
 [tool.setuptools.package-data]
-"delphi_code.infrastructure" = ["model_provenance.json"]
+"delphi_code.infrastructure" = ["model_provenance.json", "SKILL.md"]
 
 [dependency-groups]
 dev = ["ruff==0.16.9", "pyright==1.1.414"]

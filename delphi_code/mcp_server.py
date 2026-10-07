@@ -14,8 +14,8 @@ from .services.searching import MAX_SEARCH_LIMIT, SearchRequest
 from .ui.prompts import TerminalPrompts
 
 SERVER_INSTRUCTIONS = (
-    "Offline semantic code search over locally indexed projects. Use search to find code by what it does "
-    "when you don't know the identifier or file to grep for, then read the files it points to. "
+    "Offline semantic code search over locally indexed projects. When you look for code by what it does and "
+    "don't know the identifier or file to grep for, call search first, then read the files it points to. "
     "Use grep instead for exact names and strings. Tools mirror the delphi-code CLI commands and options."
 )
 READ_ONLY = {"readOnlyHint": True, "openWorldHint": False}
@@ -51,9 +51,13 @@ def delphi_code_tools(model: str) -> list[McpTool]:
     return [
         _tool(
             "search",
-            "Search indexed code with a natural-language question such as 'where are passwords checked?'. "
-            "Results are best match first; path is relative to the project and start_line/end_line locate the "
-            "passage. A higher score is a closer match; compare scores with each other, not with a fixed threshold.",
+            "Find code by what it does. Call this before grepping or reading files whenever you look for where a "
+            "behaviour or concept is implemented and don't know the exact identifier, file or string, such as "
+            "'where are passwords checked?' or 'how are failed requests retried?', and when the answer may be in "
+            "another indexed repository. Use grep only for exact names and strings you already know. Results are "
+            "best match first; path is relative to the project and start_line/end_line locate the passage, so read "
+            "around it. A higher score is a closer match; compare scores with each other, not with a fixed "
+            "threshold. If the project is not indexed yet, call index first.",
             {
                 "query": _string_property("Describe the behaviour you are looking for, not a single keyword"),
                 "project": _string_property("Project path, indexed key or folder name; omit to search every index"),

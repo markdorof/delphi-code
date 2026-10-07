@@ -21,17 +21,20 @@ class AgentConnectionsView:
         name = style.bold(connection["title"])
         config = home_abbreviated(connection["config"])
         detail = f" {connection['detail']}" if connection["detail"] else ""
+        skill = home_abbreviated(connection.get("skill"))
+        installed_skill = f", skill in {skill}" if skill else ""
+        removed_skill = f", removed the skill from {skill}" if skill else ""
         match connection["outcome"]:
             case "added":
-                return f"{style.green('✓')} {name}: added to {config}"
+                return f"{style.green('✓')} {name}: added to {config}{installed_skill}"
             case "already_configured":
-                return f"{style.green('✓')} {name}: already configured in {config}{style.dim(detail)}"
+                return f"{style.green('✓')} {name}: already configured in {config}{installed_skill}{style.dim(detail)}"
             case "removed":
-                return f"{style.green('✓')} {name}: removed from {config}"
+                return f"{style.green('✓')} {name}: removed from {config}{removed_skill}"
             case "not_configured":
-                return f"{style.dim('-')} {name}: not configured"
+                return f"{style.dim('-')} {name}: not configured{removed_skill}"
             case "kept":
-                return f"{style.dim('-')} {name}: left {config} alone,{detail}"
+                return f"{style.dim('-')} {name}: left {config} alone,{detail}{removed_skill}"
             case "not_found":
                 return f"{style.dim('-')} {name}: not installed"
             case _:
