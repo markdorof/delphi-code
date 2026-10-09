@@ -26,7 +26,7 @@ class AgentConnectionsView:
         removed_skill = f", removed the skill from {skill}" if skill else ""
         match connection["outcome"]:
             case "added":
-                return f"{style.green('✓')} {name}: added to {config}{installed_skill}"
+                return f"{style.green('✓')} {name}: added to {config}{installed_skill}{style.dim(detail)}"
             case "already_configured":
                 return f"{style.green('✓')} {name}: already configured in {config}{installed_skill}{style.dim(detail)}"
             case "removed":

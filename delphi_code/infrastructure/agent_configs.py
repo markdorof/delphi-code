@@ -20,7 +20,7 @@ PLUGIN_MARKETPLACE = "delphi-code"
 PLUGIN_MARKETPLACE_SOURCE = "markdorof/delphi-code"
 SKILL_FILE = Path(__file__).with_name("SKILL.md")
 BACKUP_SUFFIX = ".delphi-code-backup"
-CLAUDE_CLI_TIMEOUT_SECONDS = 180
+AGENT_CLI_TIMEOUT_SECONDS = 180
 NOT_ADDED_BY_CONNECT = "not added by delphi-code connect; remove it by hand if unwanted"
 
 
@@ -114,9 +114,14 @@ class JsonServersFile:
         return AgentConnection(self.name, self.title, outcome, str(path) if path else None, detail)
 
 
+class _AgentCliFailure(Exception):
+    pass
+
+
 class CodexConfig:
     name = "codex"
     title = "Codex"
+    plugin_config = f"plugin {PLUGIN_ID}"
 
     def __init__(self, codex_home: Path, skills_directory: Path):
         self._codex_home = codex_home
@@ -131,17 +136,31 @@ class CodexConfig:
             return loaded
         path, text, settings = loaded
         if PLUGIN_ID in settings.get("plugins", {}):
-            return replace(self._result(Outcome.ALREADY_CONFIGURED, path), plugin_brings_the_skill=True)
+            return self._plugin_result(Outcome.ALREADY_CONFIGURED)
         if SERVER_NAME in settings.get("mcp_servers", {}):
-            return self._result(Outcome.ALREADY_CONFIGURED, path)
-        separator = "" if not text or text.endswith("\n\n") else "\n" if text.endswith("\n") else "\n\n"
-        return self._save(path, text + separator + _codex_server_table(command), Outcome.ADDED)
+            return self._result(
+                Outcome.ALREADY_CONFIGURED,
+                path,
+                "as a standalone server; to switch to the plugin, run `delphi-code disconnect codex` "
+                "and then `delphi-code connect codex`",
+            )
+        if shutil.which("codex") is None:
+            return self._add_server_table(path, text, command)
+        try:
+            _run_agent_cli("codex", "plugin", "marketplace", "add", PLUGIN_MARKETPLACE_SOURCE, "--json")
+            _run_agent_cli("codex", "plugin", "add", PLUGIN_ID, "--json")
+        except _AgentCliFailure as exc:
+            # Codex releases without `codex plugin add` still read a standalone server.
+            return replace(self._add_server_table(path, text, command), detail=f"as a standalone server: {exc}")
+        return self._plugin_result(Outcome.ADDED)
 
     def disconnect(self, command: str) -> AgentConnection:
         loaded = self._load()
         if isinstance(loaded, AgentConnection):
             return loaded
         path, text, settings = loaded
+        if PLUGIN_ID in settings.get("plugins", {}):
+            return self._remove_plugin()
         if SERVER_NAME not in settings.get("mcp_servers", {}):
             return self._result(Outcome.NOT_CONFIGURED, path)
         table = _codex_server_table(command)
@@ -156,6 +175,22 @@ class CodexConfig:
             return False
         settings = loaded[2]
         return SERVER_NAME in settings.get("mcp_servers", {}) or PLUGIN_ID in settings.get("plugins", {})
+
+    def _add_server_table(self, path: Path, text: str, command: str) -> AgentConnection:
+        separator = "" if not text or text.endswith("\n\n") else "\n" if text.endswith("\n") else "\n\n"
+        return self._save(path, text + separator + _codex_server_table(command), Outcome.ADDED)
+
+    def _remove_plugin(self) -> AgentConnection:
+        if shutil.which("codex") is None:
+            return self._plugin_result(
+                Outcome.FAILED, f"codex is not on PATH; run `codex plugin remove {PLUGIN_ID}` by hand"
+            )
+        try:
+            _run_agent_cli("codex", "plugin", "remove", PLUGIN_ID, "--json")
+            _run_agent_cli("codex", "plugin", "marketplace", "remove", PLUGIN_MARKETPLACE, "--json")
+        except _AgentCliFailure as exc:
+            return self._plugin_result(Outcome.FAILED, str(exc))
+        return self._plugin_result(Outcome.REMOVED)
 
     def _load(self) -> tuple[Path, str, dict] | AgentConnection:
         path = self._codex_home / "config.toml"
@@ -172,12 +207,11 @@ class CodexConfig:
             return self._result(Outcome.FAILED, path, f"cannot write it: {exc}")
         return self._result(outcome, path)
 
+    def _plugin_result(self, outcome: Outcome, detail: str | None = None) -> AgentConnection:
+        return AgentConnection(self.name, self.title, outcome, self.plugin_config, detail, plugin_brings_the_skill=True)
+
     def _result(self, outcome: Outcome, path: Path, detail: str | None = None) -> AgentConnection:
         return AgentConnection(self.name, self.title, outcome, str(path), detail)
-
-
-class _ClaudeCliFailure(Exception):
-    pass
 
 
 class ClaudeCodePlugin:
@@ -202,7 +236,7 @@ class ClaudeCodePlugin:
                 )
             self._claude("plugin", "marketplace", "add", PLUGIN_MARKETPLACE_SOURCE, "--json")
             self._claude("plugin", "install", PLUGIN_ID, "--scope", "user", "--json")
-        except _ClaudeCliFailure as exc:
+        except _AgentCliFailure as exc:
             return self._result(Outcome.FAILED, str(exc))
         return self._result(Outcome.ADDED)
 
@@ -215,14 +249,14 @@ class ClaudeCodePlugin:
                 return self._result(Outcome.NOT_CONFIGURED)
             self._claude("plugin", "uninstall", PLUGIN_ID, "--scope", scope, "--json")
             self._claude("plugin", "marketplace", "remove", PLUGIN_MARKETPLACE, "--json")
-        except _ClaudeCliFailure as exc:
+        except _AgentCliFailure as exc:
             return self._result(Outcome.FAILED, str(exc))
         return self._result(Outcome.REMOVED)
 
     def configured(self) -> bool:
         try:
             return self._installed_plugin_scope() is not None or self._has_standalone_server()
-        except _ClaudeCliFailure:
+        except _AgentCliFailure:
             return False
 
     def _installed_plugin_scope(self) -> str | None:
@@ -230,7 +264,7 @@ class ClaudeCodePlugin:
         try:
             plugins = json.loads(listing)
         except json.JSONDecodeError as exc:
-            raise _ClaudeCliFailure(f"claude plugin list printed unexpected output: {exc}") from exc
+            raise _AgentCliFailure(f"claude plugin list printed unexpected output: {exc}") from exc
         scopes = [plugin.get("scope", "user") for plugin in plugins if plugin.get("id") == PLUGIN_ID]
         return scopes[0] if scopes else None
 
@@ -238,20 +272,7 @@ class ClaudeCodePlugin:
         return self._claude("mcp", "get", SERVER_NAME, check=False).returncode == 0
 
     def _claude(self, *arguments: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-        try:
-            finished = subprocess.run(
-                ["claude", *arguments],
-                stdin=subprocess.DEVNULL,
-                capture_output=True,
-                text=True,
-                timeout=CLAUDE_CLI_TIMEOUT_SECONDS,
-            )
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            raise _ClaudeCliFailure(f"claude {' '.join(arguments[:2])} failed: {exc}") from exc
-        if check and finished.returncode != 0:
-            message = (finished.stderr or finished.stdout).strip() or f"exit code {finished.returncode}"
-            raise _ClaudeCliFailure(f"claude {' '.join(arguments[:2])} failed: {message}")
-        return finished
+        return _run_agent_cli("claude", *arguments, check=check)
 
     def _result(self, outcome: Outcome, detail: str | None = None) -> AgentConnection:
         return AgentConnection(self.name, self.title, outcome, self.config, detail)
@@ -309,6 +330,23 @@ def remove_skill(skills_directory: Path) -> Path | None:
     if not any(skill_directory.iterdir()):
         skill_directory.rmdir()
     return skill_directory
+
+
+def _run_agent_cli(program: str, *arguments: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+    try:
+        finished = subprocess.run(
+            [program, *arguments],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=AGENT_CLI_TIMEOUT_SECONDS,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise _AgentCliFailure(f"{program} {' '.join(arguments[:2])} failed: {exc}") from exc
+    if check and finished.returncode != 0:
+        message = (finished.stderr or finished.stdout).strip() or f"exit code {finished.returncode}"
+        raise _AgentCliFailure(f"{program} {' '.join(arguments[:2])} failed: {message}")
+    return finished
 
 
 def _codex_server_table(command: str) -> str:

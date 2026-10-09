@@ -30,6 +30,16 @@ case "$1 $2" in
   "mcp get") [ -e "$FAKE_CLAUDE_STANDALONE" ] || exit 1 ;;
 esac
 """
+FAKE_CODEX = """#!/bin/sh
+echo "$@" >> "$FAKE_CODEX_LOG"
+config="$HOME/.codex/config.toml"
+case "$1 $2" in
+  "plugin add")
+    if [ -e "$FAKE_CODEX_WITHOUT_PLUGIN_ADD" ]; then echo "error: unrecognized subcommand 'add'" >&2; exit 2; fi
+    printf '[plugins."delphi-code@delphi-code"]\\nenabled = true\\n' >> "$config" ;;
+  "plugin remove") sed -i.old '/delphi-code@delphi-code/,/enabled/d' "$config" ;;
+esac
+"""
 
 
 class ConnectAgents(unittest.TestCase):
@@ -40,6 +50,7 @@ class ConnectAgents(unittest.TestCase):
         self.bin = self.home / "bin"
         self.bin.mkdir()
         self.claude_log = self.home / "claude.log"
+        self.codex_log = self.home / "codex.log"
         environment = patch.dict(
             os.environ,
             {
@@ -48,6 +59,8 @@ class ConnectAgents(unittest.TestCase):
                 "FAKE_CLAUDE_LOG": str(self.claude_log),
                 "FAKE_CLAUDE_PLUGIN": str(self.home / "claude-plugin-installed"),
                 "FAKE_CLAUDE_STANDALONE": str(self.home / "claude-standalone-server"),
+                "FAKE_CODEX_LOG": str(self.codex_log),
+                "FAKE_CODEX_WITHOUT_PLUGIN_ADD": str(self.home / "codex-without-plugin-add"),
             },
         )
         environment.start()
@@ -61,9 +74,16 @@ class ConnectAgents(unittest.TestCase):
         }
 
     def install_fake_claude(self):
-        claude = self.bin / "claude"
-        claude.write_text(FAKE_CLAUDE)
-        claude.chmod(0o755)
+        self.install_fake("claude", FAKE_CLAUDE)
+
+    def install_fake_codex(self):
+        (self.home / ".codex").mkdir()
+        self.install_fake("codex", FAKE_CODEX)
+
+    def install_fake(self, name, script):
+        executable = self.bin / name
+        executable.write_text(script)
+        executable.chmod(0o755)
 
     def test_finds_no_agents_in_an_empty_home(self):
         response = connect(COMMAND, [])
@@ -170,6 +190,41 @@ class ConnectAgents(unittest.TestCase):
             self.outcomes(change=disconnect),
             {"claude-code": "not_configured", "codex": "not_configured", "cursor": "not_configured", "gemini": "kept"},
         )
+
+    def test_installs_the_codex_plugin_once_and_disconnect_removes_it(self):
+        self.install_fake_codex()
+        (connection,) = connect(COMMAND, []).data["agents"]
+        self.assertEqual((connection["outcome"], connection["skill"]), ("added", None))
+        self.assertEqual(self.outcomes(), {"codex": "already_configured"})
+        self.assertNotIn("mcp_servers", tomllib.loads((self.home / ".codex/config.toml").read_text()))
+        self.assertFalse((self.home / ".agents/skills/delphi-code").exists())
+        self.assertEqual(self.outcomes(change=disconnect), {"codex": "removed"})
+        self.assertEqual(
+            self.codex_log.read_text().splitlines(),
+            [
+                "plugin marketplace add markdorof/delphi-code --json",
+                "plugin add delphi-code@delphi-code --json",
+                "plugin remove delphi-code@delphi-code --json",
+                "plugin marketplace remove delphi-code --json",
+            ],
+        )
+
+    def test_falls_back_to_a_codex_server_when_codex_cannot_add_plugins(self):
+        self.install_fake_codex()
+        (self.home / "codex-without-plugin-add").touch()
+        (connection,) = connect(COMMAND, []).data["agents"]
+        self.assertEqual(connection["outcome"], "added")
+        self.assertIn("unrecognized subcommand", connection["detail"])
+        self.assertIn("delphi-code", tomllib.loads((self.home / ".codex/config.toml").read_text())["mcp_servers"])
+        self.assertTrue((self.home / ".agents/skills/delphi-code/SKILL.md").exists())
+
+    def test_keeps_an_existing_codex_server_instead_of_adding_the_plugin(self):
+        self.install_fake_codex()
+        (self.home / ".codex/config.toml").write_text('[mcp_servers.delphi-code]\ncommand = "mine"\n')
+        (connection,) = connect(COMMAND, []).data["agents"]
+        self.assertEqual(connection["outcome"], "already_configured")
+        self.assertIn("delphi-code disconnect codex", connection["detail"])
+        self.assertFalse(self.codex_log.exists())
 
     def test_codex_counts_its_delphi_code_plugin_as_configured(self):
         (self.home / ".codex").mkdir()
