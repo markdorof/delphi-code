@@ -180,7 +180,7 @@ A Git repository with an `origin` remote shares one index across clones and move
 
 ## Offline guarantees
 
-The CLI disables telemetry, loads models only from local files, and blocks network access from Python. Only `setup`, and `add`/`sync` for remote repositories, need the network. For an OS-level guarantee on macOS:
+Indexing and search never use the network: Delphi Code disables telemetry, loads models only from local files, and blocks network access from Python while it indexes or searches. Only `setup`, and `add`/`sync` for remote repositories, need the network. For an OS-level guarantee on macOS:
 
 ```sh
 /usr/bin/sandbox-exec -p '(version 1)(allow default)(deny network*)' \

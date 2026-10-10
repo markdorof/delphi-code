@@ -1,3 +1,3 @@
-from .infrastructure.offline import enforce_offline_policy
+from .infrastructure.offline import disable_library_online_features
 
-enforce_offline_policy()
+disable_library_online_features()

@@ -10,6 +10,7 @@ from unittest.mock import Mock, call, patch
 
 from delphi_code.domain.errors import ExitCode, Failure
 from delphi_code.infrastructure.model_assets import download, verify_assets
+from delphi_code.infrastructure.offline import without_network
 from delphi_code.infrastructure.paths import data_directory
 from delphi_code.services.model_installation import provision
 from delphi_code.services.progress import Progress, Stage
@@ -139,9 +140,15 @@ class Setup(unittest.TestCase):
         with self.assertRaisesRegex(Failure, "Unexpected model asset"):
             verify_assets(self.source)
 
-    def test_import_keeps_network_guard(self):
-        with self.assertRaisesRegex(RuntimeError, "Offline policy"):
-            socket.getaddrinfo("example.com", 443)
+    def test_network_is_denied_only_inside_the_guard(self):
+        with without_network():
+            with self.assertRaisesRegex(RuntimeError, "Offline policy"):
+                socket.getaddrinfo("example.com", 443)
+            with without_network(), self.assertRaisesRegex(RuntimeError, "Offline policy"):
+                socket.create_server(("127.0.0.1", 0))
+            with self.assertRaisesRegex(RuntimeError, "Offline policy"):
+                socket.create_server(("127.0.0.1", 0))
+        socket.create_server(("127.0.0.1", 0)).close()
 
 
 class Storage(unittest.TestCase):

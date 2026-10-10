@@ -4,6 +4,7 @@ from pathlib import Path
 import sqlite3
 import tempfile
 
+from ..infrastructure.offline import without_network
 from ..infrastructure.store import Store, vector_database
 from .local_model import open_model
 from .project_catalog import resolve_existing
@@ -12,6 +13,7 @@ REPORTED_DEPENDENCIES = ("cocoindex", "sqlite-vec", "sentence-transformers", "to
 PROBE_TEXT = "local code search"
 
 
+@without_network()
 def diagnose(model_location: str, store: Store, project_name: str) -> dict:
     from ..infrastructure.vector_index import check_storage
 

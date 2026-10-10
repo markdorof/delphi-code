@@ -7,6 +7,7 @@ from ..domain.errors import ExitCode, Failure
 from ..domain.manifest import Manifest
 from ..domain.selection import FileSelection
 from ..infrastructure.model import LocalModel
+from ..infrastructure.offline import without_network
 from ..infrastructure.registry import Entry, Registry
 from ..infrastructure.sources import Checkout, GitRemoteSource
 from ..infrastructure.store import Store
@@ -17,6 +18,7 @@ from .project_catalog import optional_path_text
 logger = logging.getLogger(__name__)
 
 
+@without_network()
 def index_local_project(
     store: Store, name: str, selection: FileSelection, model_location: str, progress: Progress = SILENT
 ) -> dict:
@@ -37,6 +39,7 @@ def index_local_project(
     return result
 
 
+@without_network()
 def index_checkout(
     store: Store, checkout: Checkout, selection: FileSelection, model: LocalModel, progress: Progress
 ) -> dict:

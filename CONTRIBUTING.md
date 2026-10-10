@@ -58,7 +58,7 @@ Run the regular suite from the checkout root:
 bash scripts/test.sh
 ```
 
-It covers setup logic, project resolution, storage paths, model defaults, and cross-project ranking with real SQLite and mocked embeddings. It needs installed dependencies, but no prepared model or OS network sandbox, and makes no external requests; importing Delphi Code still installs its normal Python network guard. `.venv/bin/python -m unittest discover -s tests -v` runs the same suite.
+It covers setup logic, project resolution, storage paths, model defaults, and cross-project ranking with real SQLite and mocked embeddings. It needs installed dependencies, but no prepared model or OS network sandbox, and makes no external requests; indexing and search still run under the Python network guard in `infrastructure/offline.py`. `.venv/bin/python -m unittest discover -s tests -v` runs the same suite.
 
 Run the offline integration suite separately, on macOS with a prepared model:
 

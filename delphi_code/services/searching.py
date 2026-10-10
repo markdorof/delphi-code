@@ -1,6 +1,7 @@
 from ..domain.errors import ExitCode, Failure
 from ..domain.manifest import Manifest
 from ..infrastructure.model import LocalModel
+from ..infrastructure.offline import without_network
 from ..infrastructure.store import Index, Store
 from .local_model import open_model
 from .project_catalog import optional_path_text, resolve_indexed
@@ -18,6 +19,7 @@ class SearchRequest:
         self.limit = limit
 
 
+@without_network()
 def search_project(store: Store, name: str, request: SearchRequest, model_location: str) -> dict:
     key, index = resolve_indexed(store, name)
     model = open_model(model_location)
@@ -34,6 +36,7 @@ def search_project(store: Store, name: str, request: SearchRequest, model_locati
     }
 
 
+@without_network()
 def search_everywhere(store: Store, request: SearchRequest, model_location: str) -> dict:
     indexes, unrecognized = store.all(), store.unrecognized_directories()
     if not indexes and not unrecognized:
