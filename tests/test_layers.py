@@ -3,22 +3,32 @@ from pathlib import Path
 import unittest
 
 PACKAGE = Path(__file__).resolve().parent.parent / "delphi_code"
-UI_LIBRARIES = {"questionary", "prompt_toolkit", "rich", "tqdm"}
+TERMINAL_LIBRARIES = {"questionary", "prompt_toolkit", "rich", "tqdm"}
+WEB_LIBRARIES = {"fastapi", "starlette", "pydantic", "uvicorn"}
 TERMINAL_STREAMS = {"stdout", "stderr"}
-PORTS_AND_FOUNDATIONS_FOR_UI = ("domain.errors", "services.progress")
-VIEW_BUILDING_BLOCKS_FOR_CONTROLLERS = ("ui.views", "ui.text_layout")
-LAYERS_EACH_LAYER_MAY_IMPORT = {
+CORE_LAYERS_EACH_MAY_IMPORT = {
     "domain": {"domain"},
     "infrastructure": {"domain", "infrastructure"},
     "services": {"domain", "infrastructure", "services"},
-    "controllers": {"domain", "infrastructure", "services", "controllers", "ui"},
-    "ui": {"ui", "domain", "services"},
 }
-LAYERS_WITHOUT_TERMINAL_ACCESS = ("domain", "infrastructure", "services", "controllers")
+FRONT_ENDS = ("cli", "mcp_server", "http_api")
+PORTS_AND_FOUNDATIONS_FOR_TERMINAL_UI = ("domain.errors", "services.progress")
+VIEW_BUILDING_BLOCKS_FOR_CONTROLLERS = ("cli.terminal.views", "cli.terminal.text_layout")
+LAYERS_WITHOUT_TERMINAL_ACCESS = (
+    "domain",
+    "infrastructure",
+    "services",
+    "cli/controllers",
+    "cli/main.py",
+    "mcp_server",
+    "http_api",
+)
 
 
 def modules_of(layer):
-    return [(path, ast.parse(path.read_text())) for path in sorted((PACKAGE / layer).rglob("*.py"))]
+    location = PACKAGE / layer
+    paths = [location] if location.suffix == ".py" else sorted(location.rglob("*.py"))
+    return [(path, ast.parse(path.read_text())) for path in paths]
 
 
 def package_imports(path, tree):
@@ -51,39 +61,57 @@ def terminal_uses(tree):
 
 
 class Layers(unittest.TestCase):
-    def test_each_layer_imports_only_the_layers_beneath_it(self):
-        for layer, allowed_layers in LAYERS_EACH_LAYER_MAY_IMPORT.items():
+    def test_each_core_layer_imports_only_the_layers_beneath_it(self):
+        for layer, allowed_layers in CORE_LAYERS_EACH_MAY_IMPORT.items():
             for path, tree in modules_of(layer):
                 for imported in package_imports(path, tree):
                     with self.subTest(module=str(path.relative_to(PACKAGE)), imports=imported):
                         self.assertIn(imported.split(".")[0], allowed_layers)
 
-    def test_the_mcp_server_calls_services_without_the_cli_layers(self):
-        path = PACKAGE / "mcp_server.py"
-        for imported in package_imports(path, ast.parse(path.read_text())):
-            with self.subTest(imports=imported):
-                self.assertIn(imported.split(".")[0], {"domain", "infrastructure", "services"})
-
-    def test_ui_knows_only_ports_and_foundations(self):
-        for path, tree in modules_of("ui"):
-            for imported in package_imports(path, tree):
-                if not imported.startswith("ui."):
+    def test_front_ends_use_the_core_and_only_start_each_other(self):
+        for front_end in FRONT_ENDS:
+            allowed_layers = {*CORE_LAYERS_EACH_MAY_IMPORT, front_end}
+            started_servers = {f"{other}.serve" for other in FRONT_ENDS if other != front_end}
+            for path, tree in modules_of(front_end):
+                for imported in package_imports(path, tree):
                     with self.subTest(module=str(path.relative_to(PACKAGE)), imports=imported):
-                        self.assertTrue(imported.startswith(PORTS_AND_FOUNDATIONS_FOR_UI), imported)
+                        self.assertTrue(imported.split(".")[0] in allowed_layers or imported in started_servers)
 
-    def test_controllers_use_only_views_from_the_ui(self):
-        for path, tree in modules_of("controllers"):
+    def test_other_front_ends_load_only_when_their_server_starts(self):
+        for front_end in FRONT_ENDS:
+            for path, tree in modules_of(front_end):
+                imports = [node for node in tree.body if isinstance(node, ast.ImportFrom)]
+                module_level = ast.Module(body=imports, type_ignores=[])
+                for imported in package_imports(path, module_level):
+                    with self.subTest(module=str(path.relative_to(PACKAGE)), imports=imported):
+                        self.assertFalse(imported.split(".")[0] in set(FRONT_ENDS) - {front_end}, imported)
+
+    def test_terminal_ui_knows_only_ports_and_foundations(self):
+        for path, tree in modules_of("cli/terminal"):
             for imported in package_imports(path, tree):
-                if imported.startswith("ui."):
+                if not imported.startswith("cli.terminal."):
+                    with self.subTest(module=str(path.relative_to(PACKAGE)), imports=imported):
+                        self.assertTrue(imported.startswith(PORTS_AND_FOUNDATIONS_FOR_TERMINAL_UI), imported)
+
+    def test_controllers_use_only_views_from_the_terminal_ui(self):
+        for path, tree in modules_of("cli/controllers"):
+            for imported in package_imports(path, tree):
+                if imported.startswith("cli.") and not imported.startswith("cli.controllers"):
                     with self.subTest(module=path.name, imports=imported):
                         self.assertTrue(imported.startswith(VIEW_BUILDING_BLOCKS_FOR_CONTROLLERS), imported)
 
-    def test_only_the_ui_uses_terminal_libraries_and_streams(self):
+    def test_only_the_terminal_ui_uses_terminal_libraries_and_streams(self):
         for layer in LAYERS_WITHOUT_TERMINAL_ACCESS:
             for path, tree in modules_of(layer):
                 with self.subTest(module=str(path.relative_to(PACKAGE))):
-                    self.assertFalse(UI_LIBRARIES & set(third_party_imports(tree)))
+                    self.assertFalse(TERMINAL_LIBRARIES & set(third_party_imports(tree)))
                     self.assertEqual(terminal_uses(tree), [])
+
+    def test_only_the_http_api_uses_web_libraries(self):
+        for layer in (*CORE_LAYERS_EACH_MAY_IMPORT, "cli", "mcp_server"):
+            for path, tree in modules_of(layer):
+                with self.subTest(module=str(path.relative_to(PACKAGE))):
+                    self.assertFalse(WEB_LIBRARIES & set(third_party_imports(tree)))
 
 
 if __name__ == "__main__":

@@ -15,15 +15,15 @@ from urllib.parse import urlsplit
 from prompt_toolkit.input import create_pipe_input
 from prompt_toolkit.output import DummyOutput
 
-from delphi_code.controllers import indexing as indexing_controller
-from delphi_code.controllers import repository_picking
+from delphi_code.cli.controllers import indexing as indexing_controller
+from delphi_code.cli.controllers import repository_picking
+from delphi_code.cli.terminal.prompts import TerminalPrompts
+from delphi_code.cli.terminal.repository_list import RepositoryList, repository_title
 from delphi_code.domain.errors import Failure, FailureKind
 from delphi_code.domain.tracking_changes import TrackingChanges
 from delphi_code.infrastructure import hosts
 from delphi_code.infrastructure.hosts import Bitbucket, GitHub, Owner, Repository, configured_hosts
 from delphi_code.services.progress import SILENT, Progress
-from delphi_code.ui.prompts import TerminalPrompts
-from delphi_code.ui.repository_list import RepositoryList, repository_title
 
 CREDENTIAL_VARIABLES = ("BITBUCKET_USERNAME", "BITBUCKET_APP_PASSWORD", "BITBUCKET_EMAIL", "GITHUB_TOKEN", "GH_TOKEN")
 
@@ -33,7 +33,7 @@ def answering(value):
 
 
 def choosing(keys):
-    return patch("delphi_code.ui.prompts.ask_repositories", return_value=None if keys is None else set(keys))
+    return patch("delphi_code.cli.terminal.prompts.ask_repositories", return_value=None if keys is None else set(keys))
 
 
 class FakeHost:

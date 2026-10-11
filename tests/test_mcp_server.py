@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from fakes import use_fake_model
 
-from delphi_code.mcp_server import delphi_code_server
+from delphi_code.mcp_server.tools import delphi_code_server
 
 CLI_COMMANDS = ["add", "doctor", "index", "list", "remove", "search", "setup", "status", "sync"]
 

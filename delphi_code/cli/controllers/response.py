@@ -1,6 +1,6 @@
 from typing import NamedTuple
 
-from ..ui.text_layout import TextView
+from ..terminal.text_layout import TextView
 
 
 class ControllerResponse(NamedTuple):

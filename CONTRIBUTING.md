@@ -20,17 +20,15 @@ The aim is code a newcomer can read top to bottom without a guide.
 
 | Layer | Location | Knows about |
 |---|---|---|
-| Entry point | `cli.py` | argparse; picks the concrete UI, calls one controller, writes its data as JSON or its views as text |
-| MCP entry point | `mcp_server.py` | defines one MCP tool per command except `connect` and `disconnect`; calls services directly, never controllers or `ui/`, and returns their data as tool results through `infrastructure/mcp_stdio_server.py` |
-| Controllers | `controllers/` | one function per command: calls services, asks through the `Prompts` port (`controllers/repository_picking.py`), and builds the views for its result |
-| User interface | `ui/` | `text_layout.py` (generic terminal text), `views/` (how domain concepts look), `output.py`, `terminal.py`, `prompts.py`, `repository_list.py`; only `domain.errors` and `services.progress` below it |
-| Services | `services/` | what a command does: `indexing`, `searching`, `tracking`, `remote_repositories`, `project_catalog`, `model_installation`, `diagnostics`, `agent_connections`, plus the `Progress` port |
-| Infrastructure | `infrastructure/` | disk, git, network and libraries: `store`, `registry`, `model`, `vector_index`, `files`, `sources`, `hosts`, `project_identity`, `model_assets`, `paths`, `offline`, `mcp_stdio_server` (JSON-RPC over stdio, no SDK), `agent_configs` (each agent's MCP config file or CLI) |
+| Front end: CLI | `cli/` | `main.py` (argparse; picks the port implementations, calls one controller, writes its data as JSON or its views as text), `controllers/` (one function per command), `terminal/` (everything drawn on or asked in the terminal) |
+| Front end: MCP | `mcp_server/` | `tools.py` defines one MCP tool per command except `connect` and `disconnect`, calls services directly and returns their data; `stdio_protocol.py` is JSON-RPC over stdio, no SDK |
+| Services | `services/` | what a command does and the data it returns, the same for every front end: `indexing`, `searching`, `tracking`, `remote_repositories`, `project_catalog`, `model_installation`, `diagnostics`, `agent_connections`, plus the `Progress` port |
+| Infrastructure | `infrastructure/` | disk, git, network and libraries: `store`, `registry`, `model`, `vector_index`, `files`, `sources`, `hosts`, `project_identity`, `model_assets`, `paths`, `offline`, `agent_configs` (each agent's MCP config file or CLI) |
 | Domain | `domain/` | pure rules with no I/O: `errors`, `keys`, `manifest`, `selection`, `tracking_changes`, `agent_connection` |
 
-Lower layers never import `cli`, and no module below `cli` sees an `argparse.Namespace`. `infrastructure/hosts.py` and `infrastructure/model_download.py` also run as standalone scripts in a separate process, so they never import package modules unconditionally (`hosts.py` imports `domain.errors` only under `if __package__`).
+Front ends import services, the domain, and infrastructure only to construct things such as `Store()` and `Registry()`. They never import each other, except that `cli/main.py` starts the other front ends' servers through their `serve`, imported inside the command that runs them so the CLI never loads their libraries otherwise. Nothing below a front end imports it, and no module outside `cli/` sees an `argparse.Namespace`. `infrastructure/hosts.py` and `infrastructure/model_download.py` also run as standalone scripts in a separate process, so they never import package modules unconditionally (`hosts.py` imports `domain.errors` only under `if __package__`).
 
-**User interface.** Services, infrastructure and the domain never import `ui/` and never write to the terminal. Controllers import only `ui/views/` and `ui/text_layout.py`, to build views. They depend on two ports instead of the terminal. `Progress` (`services/progress.py`) receives events and does nothing by default; `ui/terminal.py` draws them. `Prompts` (`controllers/repository_picking.py`) asks single questions; `ui/prompts.py` answers them in the terminal. A controller decides what is asked and when, gathers every decision first, and then calls one service command such as `tracking.apply_tracking_changes`, so services never ask. Each controller returns a `ControllerResponse` with the data for JSON output and the views for text output. `cli.py` is the one place that picks port implementations and the output format.
+**Terminal UI.** Only `cli/terminal/` writes to the terminal. Controllers call one service and build views, importing only `terminal/views/` and `terminal/text_layout.py` from it. They depend on two ports instead of the terminal. `Progress` (`services/progress.py`) receives events and does nothing by default; `cli/terminal/progress.py` draws them. `Prompts` (`cli/controllers/repository_picking.py`) asks single questions; `cli/terminal/prompts.py` answers them in the terminal. A controller decides what is asked and when, gathers every decision first, and then calls one service command such as `remote_repositories.apply_picked_changes`, so services never ask. Each controller returns a `ControllerResponse` with the data for JSON output and the views for text output. `cli/terminal/` knows only `domain.errors` and `services.progress` outside itself.
 
 **Interfaces.**
 - Hide representations behind objects. Callers ask `manifest.ready` or `index.search(...)`; they never reach into JSON dicts or SQL.
@@ -40,7 +38,7 @@ Lower layers never import `cli`, and no module below `cli` sees an `argparse.Nam
 
 **Names over comments.** Make names carry the meaning and default to no comments or docstrings. Keep a comment only for a non-obvious *why* that no name can express. Replace magic values with named constants.
 
-**Errors.** Raise `Failure(code, message, FailureKind.X)` from `errors.py`. `code` is the stable machine-readable identifier; `FailureKind` says what went wrong, and each front end maps it: `ui/output.py` to the exit codes in the README. The message tells the user how to recover.
+**Errors.** Raise `Failure(code, message, FailureKind.X)` from `errors.py`. `code` is the stable machine-readable identifier; `FailureKind` says what went wrong, and each front end maps it, such as `cli/terminal/output.py` to the exit codes in the README. The message tells the user how to recover.
 
 **Tests.** Test behaviour through public seams: the CLI entry points, `LocalModel.inspect` (replaced by `tests/fakes.FakeModel`), and `projects.index_checkout`. Do not patch private helpers.
 

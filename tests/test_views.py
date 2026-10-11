@@ -1,11 +1,11 @@
 from pathlib import Path
 import unittest
 
-from delphi_code.ui.text_layout import TextStyle
-from delphi_code.ui.views.indexing import IndexingOutcomesSummaryView, IndexingOutcomeView
-from delphi_code.ui.views.project_table import ProjectTableView
-from delphi_code.ui.views.search_hits import SearchHitsView
-from delphi_code.ui.views.tracking import UntrackedProjectView
+from delphi_code.cli.terminal.text_layout import TextStyle
+from delphi_code.cli.terminal.views.indexing import IndexingOutcomesSummaryView, IndexingOutcomeView
+from delphi_code.cli.terminal.views.project_table import ProjectTableView
+from delphi_code.cli.terminal.views.search_hits import SearchHitsView
+from delphi_code.cli.terminal.views.tracking import UntrackedProjectView
 
 UNCOLORED = TextStyle(colors_enabled=False)
 HIT = {"path": "a.py", "start_line": 1, "end_line": 2, "language": "python", "score": 0.4567, "text": "x"}

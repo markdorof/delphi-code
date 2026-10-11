@@ -4,7 +4,7 @@ import sys
 import unittest
 from unittest.mock import patch
 
-from delphi_code.cli import arguments
+from delphi_code.cli.main import arguments
 from delphi_code.domain.errors import Failure
 from delphi_code.infrastructure.paths import model_directory
 

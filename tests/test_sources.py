@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from fakes import use_fake_model
 
-from delphi_code.cli import arguments, execute
+from delphi_code.cli.main import arguments, execute
 from delphi_code.domain.errors import Failure
 from delphi_code.domain.manifest import Manifest
 from delphi_code.domain.tracking_changes import TrackingChanges
@@ -234,10 +234,10 @@ class RemoteSync(LocalHostWithApiRepository):
         self.assertEqual((Registry().entries(), Store().all()), ([], []))
 
     def pick(self, changes):
-        self.enterContext(patch("delphi_code.ui.prompts.TerminalPrompts.require_terminal"))
+        self.enterContext(patch("delphi_code.cli.terminal.prompts.TerminalPrompts.require_terminal"))
         self.enterContext(patch("delphi_code.infrastructure.hosts.configured_hosts", return_value=["host"]))
         return self.enterContext(
-            patch("delphi_code.controllers.repository_picking.pick_tracking_changes", return_value=changes)
+            patch("delphi_code.cli.controllers.repository_picking.pick_tracking_changes", return_value=changes)
         )
 
     def test_add_without_sources_needs_a_terminal(self):

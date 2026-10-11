@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from fakes import use_fake_model
 
-from delphi_code.cli import arguments, execute
+from delphi_code.cli.main import arguments, execute
 from delphi_code.domain.errors import Failure
 from delphi_code.domain.keys import local_key
 from delphi_code.domain.selection import FileSelection

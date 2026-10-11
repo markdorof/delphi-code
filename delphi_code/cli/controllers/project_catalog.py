@@ -1,10 +1,10 @@
-from ..infrastructure.registry import Registry
-from ..infrastructure.store import Store
-from ..services import project_catalog, tracking
-from ..ui.text_layout import Message
-from ..ui.views.index_state import IndexStateView
-from ..ui.views.project_table import ProjectTableView
-from ..ui.views.tracking import TRACK_A_PROJECT_HINT, UntrackedProjectView
+from ...infrastructure.registry import Registry
+from ...infrastructure.store import Store
+from ...services import project_catalog, tracking
+from ..terminal.text_layout import Message
+from ..terminal.views.index_state import IndexStateView
+from ..terminal.views.project_table import ProjectTableView
+from ..terminal.views.tracking import TRACK_A_PROJECT_HINT, UntrackedProjectView
 from .response import ControllerResponse
 
 

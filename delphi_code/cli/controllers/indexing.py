@@ -1,11 +1,11 @@
-from ..domain.selection import FileSelection
-from ..infrastructure.registry import Registry
-from ..infrastructure.store import Store
-from ..services import indexing, tracking
-from ..services.progress import Progress
-from ..ui.text_layout import Message, TextView
-from ..ui.views.indexing import IndexingOutcomesSummaryView, IndexingOutcomeView
-from ..ui.views.tracking import TRACK_A_PROJECT_HINT, NewlyTrackedProjectsView, UntrackedProjectView
+from ...domain.selection import FileSelection
+from ...infrastructure.registry import Registry
+from ...infrastructure.store import Store
+from ...services import indexing, tracking
+from ...services.progress import Progress
+from ..terminal.text_layout import Message, TextView
+from ..terminal.views.indexing import IndexingOutcomesSummaryView, IndexingOutcomeView
+from ..terminal.views.tracking import TRACK_A_PROJECT_HINT, NewlyTrackedProjectsView, UntrackedProjectView
 from . import repository_picking
 from .repository_picking import Prompts
 from .response import ControllerResponse

@@ -40,7 +40,7 @@ class LogFile(unittest.TestCase):
 
     def test_level_controls_package_messages(self):
         self.configure(DELPHI_CODE_LOG_LEVEL="warning")
-        logging.getLogger("delphi_code.cli").info("search started")
+        logging.getLogger("delphi_code.cli.main").info("search started")
         self.assertNotIn("search started", self.log.read_text())
 
     def test_off_writes_nothing(self):

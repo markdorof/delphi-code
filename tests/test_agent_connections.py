@@ -8,11 +8,11 @@ import tomllib
 import unittest
 from unittest.mock import patch
 
-from delphi_code.controllers.installation import connect, disconnect, setup
+from delphi_code.cli.controllers.installation import connect, disconnect, setup
+from delphi_code.cli.terminal.text_layout import TextStyle
 from delphi_code.domain.errors import Failure
-from delphi_code.mcp_server import delphi_code_tools
+from delphi_code.mcp_server.tools import delphi_code_tools
 from delphi_code.services.progress import SILENT
-from delphi_code.ui.text_layout import TextStyle
 
 COMMAND = "/opt/bin/delphi-code"
 REPOSITORY = Path(__file__).resolve().parent.parent

@@ -11,7 +11,7 @@ from fakes import use_fake_model
 import numpy as np
 import sqlite_vec
 
-from delphi_code.cli import arguments, execute
+from delphi_code.cli.main import arguments, execute
 from delphi_code.domain.errors import Failure
 from delphi_code.domain.keys import local_key
 from delphi_code.infrastructure.store import Store

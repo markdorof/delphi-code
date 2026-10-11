@@ -7,18 +7,17 @@ import shutil
 import sys
 import time
 
-from . import mcp_server
+from ..domain.errors import Failure, FailureKind
+from ..domain.selection import DEFAULT_MAX_BYTES, FileSelection
+from ..infrastructure.log_file import write_logs_to_file
+from ..infrastructure.paths import model_directory
+from ..services.progress import Progress
+from ..services.searching import MAX_SEARCH_LIMIT, SearchRequest
 from .controllers import indexing, installation, project_catalog, searching
 from .controllers.response import ControllerResponse
-from .domain.errors import Failure, FailureKind
-from .domain.selection import DEFAULT_MAX_BYTES, FileSelection
-from .infrastructure.log_file import write_logs_to_file
-from .infrastructure.paths import model_directory
-from .services.progress import Progress
-from .services.searching import MAX_SEARCH_LIMIT, SearchRequest
-from .ui import output
-from .ui.prompts import TerminalPrompts
-from .ui.terminal import TerminalProgress
+from .terminal import output
+from .terminal.progress import TerminalProgress
+from .terminal.prompts import TerminalPrompts
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +148,9 @@ COMMANDS: dict[str, Callable[[argparse.Namespace, Progress], ControllerResponse]
 
 def _serve_mcp(model: str):
     logger.info("mcp server started in %s", Path.cwd())
-    mcp_server.serve(model)
+    from ..mcp_server import serve as serve_mcp
+
+    serve_mcp(model)
 
 
 def _configured_model() -> str:

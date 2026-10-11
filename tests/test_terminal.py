@@ -3,9 +3,9 @@ from pathlib import Path
 import unittest
 from unittest.mock import Mock, call, patch
 
+from delphi_code.cli.terminal.progress import StatusLine, TerminalProgress
 from delphi_code.domain.errors import Failure, FailureKind
 from delphi_code.services.progress import Stage
-from delphi_code.ui.terminal import StatusLine, TerminalProgress
 
 
 class StatusLines(unittest.TestCase):
@@ -18,8 +18,8 @@ class StatusLines(unittest.TestCase):
     def test_counts_fit_the_terminal_and_end_on_a_kept_line(self):
         stream = io.StringIO()
         with (
-            patch("delphi_code.ui.terminal.REDRAW_SECONDS", 0.001),
-            patch("delphi_code.ui.terminal._columns", return_value=79),
+            patch("delphi_code.cli.terminal.progress.REDRAW_SECONDS", 0.001),
+            patch("delphi_code.cli.terminal.progress._columns", return_value=79),
             StatusLine(stream) as progress,
         ):
             progress.begin("[1/2] github.com/owner/repository")
@@ -34,7 +34,7 @@ class StatusLines(unittest.TestCase):
 
     def test_shows_elapsed_time_only_for_slow_operations(self):
         stream = io.StringIO()
-        with patch("delphi_code.ui.terminal.time.monotonic", side_effect=[0, 100, 101, 200, 275]):
+        with patch("delphi_code.cli.terminal.progress.time.monotonic", side_effect=[0, 100, 101, 200, 275]):
             progress = StatusLine(stream)
             progress.begin("fast")
             progress.end("✓", "unchanged")

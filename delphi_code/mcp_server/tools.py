@@ -4,14 +4,14 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .domain.errors import Failure
-from .domain.selection import DEFAULT_MAX_BYTES, FileSelection
-from .infrastructure.mcp_stdio_server import McpStdioServer, McpTool, McpToolFailure
-from .infrastructure.registry import Registry
-from .infrastructure.store import Store
-from .services import diagnostics, indexing, model_installation, project_catalog, searching, tracking
-from .services.progress import SILENT
-from .services.searching import MAX_SEARCH_LIMIT, SearchRequest
+from ..domain.errors import Failure
+from ..domain.selection import DEFAULT_MAX_BYTES, FileSelection
+from ..infrastructure.registry import Registry
+from ..infrastructure.store import Store
+from ..services import diagnostics, indexing, model_installation, project_catalog, searching, tracking
+from ..services.progress import SILENT
+from ..services.searching import MAX_SEARCH_LIMIT, SearchRequest
+from .stdio_protocol import McpStdioServer, McpTool, McpToolFailure
 
 SERVER_INSTRUCTIONS = (
     "Offline semantic code search over locally indexed projects. When you look for code by what it does and "

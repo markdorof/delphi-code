@@ -2,7 +2,7 @@ import io
 import json
 import unittest
 
-from delphi_code.infrastructure.mcp_stdio_server import McpStdioServer, McpTool, McpToolFailure
+from delphi_code.mcp_server.stdio_protocol import McpStdioServer, McpTool, McpToolFailure
 
 
 def echo(arguments):

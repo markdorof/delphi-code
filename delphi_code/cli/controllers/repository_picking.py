@@ -1,11 +1,11 @@
 from typing import Protocol
 
-from ..domain.selection import FileSelection
-from ..domain.tracking_changes import TrackingChanges
-from ..infrastructure.registry import Registry
-from ..infrastructure.store import Store
-from ..services import remote_repositories
-from ..services.progress import Progress
+from ...domain.selection import FileSelection
+from ...domain.tracking_changes import TrackingChanges
+from ...infrastructure.registry import Registry
+from ...infrastructure.store import Store
+from ...services import remote_repositories
+from ...services.progress import Progress
 
 
 class Prompts(Protocol):

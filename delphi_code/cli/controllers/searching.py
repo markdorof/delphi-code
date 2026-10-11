@@ -1,9 +1,9 @@
-from ..infrastructure.store import Store
-from ..services import searching
-from ..services.searching import SearchRequest
-from ..ui.text_layout import pluralized
-from ..ui.views.project_names import project_display_name
-from ..ui.views.search_hits import SearchHitsView
+from ...infrastructure.store import Store
+from ...services import searching
+from ...services.searching import SearchRequest
+from ..terminal.text_layout import pluralized
+from ..terminal.views.project_names import project_display_name
+from ..terminal.views.search_hits import SearchHitsView
 from .response import ControllerResponse
 
 

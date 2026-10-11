@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 import unittest
 
-from delphi_code.ui.text_layout import (
+from delphi_code.cli.terminal.text_layout import (
     LabelledFields,
     Table,
     TextStyle,

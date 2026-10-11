@@ -1,6 +1,6 @@
 import sys
 
-from ..domain.errors import Failure, FailureKind
+from ...domain.errors import Failure, FailureKind
 from .repository_list import ask_repositories
 
 

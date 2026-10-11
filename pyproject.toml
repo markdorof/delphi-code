@@ -44,7 +44,7 @@ Repository = "https://github.com/markdorof/delphi-code"
 Issues = "https://github.com/markdorof/delphi-code/issues"
 
 [project.scripts]
-delphi-code = "delphi_code.cli:main"
+delphi-code = "delphi_code.cli.main:main"
 
 [tool.setuptools.packages.find]
 include = ["delphi_code*"]
