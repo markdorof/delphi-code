@@ -24,9 +24,11 @@ def index_local_project(
 ) -> dict:
     project, key, index = store.resolve(name)
     if index and index.project is None:
-        raise Failure("usage", f"{key} is a remote repository; update it with delphi-code sync", FailureKind.USAGE)
+        raise Failure(
+            "usage", f"{key} is a remote repository; update it with delphi-code sync", FailureKind.INVALID_REQUEST
+        )
     if project is None or not project.is_dir():
-        raise Failure("project_missing", f"Project directory does not exist: {project}", FailureKind.USAGE)
+        raise Failure("project_missing", f"Project directory does not exist: {project}", FailureKind.NOT_FOUND)
     model = open_model(model_location)
     checkout = Checkout(project, project, {"kind": "local", "key": key})
     progress.repository_started(key, 1, 1)
@@ -108,7 +110,7 @@ def sync(
         raise Failure(
             "sync_failed",
             f"{len(failed)} of {len(results)} tracked projects failed: {', '.join(failed)}",
-            FailureKind.OPERATION,
+            FailureKind.OPERATION_FAILED,
             data,
         )
     return data

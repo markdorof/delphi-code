@@ -108,6 +108,6 @@ def _storage_environment(directory: Path, provider=None):
             raise Failure(
                 "sandbox_storage_denied",
                 "Sandbox denied CocoIndex storage initialization; use a sandbox allowing its native storage operations while keeping network access denied",
-                FailureKind.RUNTIME_ASSETS,
+                FailureKind.PREREQUISITE_MISSING,
             ) from exc
         raise

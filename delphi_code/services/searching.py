@@ -12,7 +12,7 @@ MAX_SEARCH_LIMIT = 1000
 class SearchRequest:
     def __init__(self, query: str, paths: list[str], languages: list[str], limit: int):
         if not query.strip():
-            raise Failure("usage", "Query must be nonempty", FailureKind.USAGE)
+            raise Failure("usage", "Query must be nonempty", FailureKind.INVALID_REQUEST)
         self.query = query
         self.paths = paths
         self.languages = languages
@@ -49,11 +49,11 @@ def search_everywhere(store: Store, request: SearchRequest, model_location: str)
         raise Failure(
             "index_missing",
             "No indexes exist; run delphi-code index -p /absolute/path/to/project first",
-            FailureKind.INDEX_STATE,
+            FailureKind.INDEX_NOT_READY,
         )
     if unrecognized:
         raise Failure(
-            "index_incompatible", f"{unrecognized[0]}: Index has no valid project identity", FailureKind.INDEX_STATE
+            "index_incompatible", f"{unrecognized[0]}: Index has no valid project identity", FailureKind.INDEX_NOT_READY
         )
     model = open_model(model_location)
     query_vector = _query_vector(model, request)

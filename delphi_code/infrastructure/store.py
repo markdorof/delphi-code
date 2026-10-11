@@ -26,7 +26,7 @@ def require_sqlite_extensions():
             "sqlite_extensions_unavailable",
             "This Python disables SQLite extension loading; reinstall with uv's own Python: "
             "uv tool install --reinstall --managed-python delphi-code",
-            FailureKind.RUNTIME_ASSETS,
+            FailureKind.PREREQUISITE_MISSING,
         )
 
 
@@ -64,28 +64,26 @@ class Index:
         if exclusive:
             self.directory.mkdir(parents=True, exist_ok=True)
         if not self.directory.is_dir():
-            raise Failure("index_missing", "No index exists; run index first", FailureKind.INDEX_STATE)
+            raise Failure("index_missing", "No index exists; run index first", FailureKind.INDEX_NOT_READY)
         try:
             with (self.directory / "lock").open("a" if exclusive else "r") as lock:
                 try:
                     fcntl.flock(lock, (fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH) | fcntl.LOCK_NB)
                 except BlockingIOError as exc:
-                    raise Failure(
-                        "index_busy", "Another command is updating this project", FailureKind.OPERATION
-                    ) from exc
+                    raise Failure("index_busy", "Another command is updating this project", FailureKind.BUSY) from exc
                 yield
         except FileNotFoundError as exc:
-            raise Failure("index_missing", "No index exists; run index first", FailureKind.INDEX_STATE) from exc
+            raise Failure("index_missing", "No index exists; run index first", FailureKind.INDEX_NOT_READY) from exc
 
     def read_manifest(self) -> Manifest:
         manifest = _read_manifest_if_valid_json(self._manifest_path)
         if manifest is None:
-            raise Failure("index_missing", "No completed index exists; run index first", FailureKind.INDEX_STATE)
+            raise Failure("index_missing", "No completed index exists; run index first", FailureKind.INDEX_NOT_READY)
         if manifest.schema_version != SCHEMA_VERSION:
             raise Failure(
                 "index_incompatible",
                 f"This version cannot read the index format; delete or move {self.directory} aside and reindex",
-                FailureKind.INDEX_STATE,
+                FailureKind.INDEX_NOT_READY,
             )
         return manifest
 
@@ -98,7 +96,7 @@ class Index:
             raise Failure(
                 "model_mismatch",
                 f"Model assets differ from the index; restore the original model or move {self.directory} aside and reindex",
-                FailureKind.INDEX_STATE,
+                FailureKind.INDEX_NOT_READY,
             )
         return manifest
 
@@ -108,7 +106,7 @@ class Index:
             raise Failure(
                 "index_incomplete",
                 "Last index did not complete; run index again before searching",
-                FailureKind.INDEX_STATE,
+                FailureKind.INDEX_NOT_READY,
             )
         return manifest
 

@@ -31,7 +31,9 @@ class Entry:
     def origin(self) -> Source:
         origin = source_from_registry(self.source)
         if origin is None:
-            raise Failure("registry_invalid", f"Unsupported project source: {self.source}", FailureKind.USAGE)
+            raise Failure(
+                "registry_invalid", f"Unsupported project source: {self.source}", FailureKind.INVALID_CONFIGURATION
+            )
         return origin
 
     @property
@@ -72,14 +74,16 @@ class Registry:
         except FileNotFoundError:
             return []
         except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
-            raise Failure("registry_invalid", f"Cannot read {self.path}: {exc}", FailureKind.USAGE) from exc
+            raise Failure(
+                "registry_invalid", f"Cannot read {self.path}: {exc}", FailureKind.INVALID_CONFIGURATION
+            ) from exc
         tables = data.get("repo", [])
         well_formed = isinstance(tables, list) and all(_is_well_formed_table(table) for table in tables)
         if set(data) - {"repo"} or not well_formed:
             raise Failure(
                 "registry_invalid",
                 f"{self.path}: expected [[repo]] tables with a source (an absolute path, bitbucket.org/workspace/repository, or github.com/owner/repository), optional key and ref strings, optional string lists paths, languages and ignores, and a positive integer max_bytes",
-                FailureKind.USAGE,
+                FailureKind.INVALID_CONFIGURATION,
             )
         return [Entry.from_toml(table) for table in tables]
 

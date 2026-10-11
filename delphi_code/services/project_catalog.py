@@ -9,7 +9,7 @@ def resolve_existing(store: Store, name: str) -> ResolvedProject:
     resolved = store.resolve(name)
     directory_exists = resolved.project is not None and resolved.project.is_dir()
     if not directory_exists and resolved.index is None:
-        raise Failure("project_missing", f"Project directory does not exist: {resolved.project}", FailureKind.USAGE)
+        raise Failure("project_missing", f"Project directory does not exist: {resolved.project}", FailureKind.NOT_FOUND)
     return resolved
 
 
@@ -19,7 +19,7 @@ def resolve_indexed(store: Store, name: str) -> tuple[str, Index]:
         raise Failure(
             "index_missing",
             f"No index exists; run delphi-code index -p {shlex.quote(str(project))}",
-            FailureKind.INDEX_STATE,
+            FailureKind.INDEX_NOT_READY,
         )
     return key, index
 

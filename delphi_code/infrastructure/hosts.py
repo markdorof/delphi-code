@@ -115,7 +115,7 @@ class RepositoryHost:
             raise Failure(
                 "remote_auth_missing",
                 f"Listing {self.name} repositories needs credentials: {self.credentials_hint}",
-                FailureKind.RUNTIME_ASSETS,
+                FailureKind.PREREQUISITE_MISSING,
             )
         return credentials
 
@@ -155,7 +155,7 @@ class RepositoryHost:
             raise Failure(
                 "remote_unavailable",
                 f"{self.name} did not answer within {LISTING_TIMEOUT_SECONDS} seconds",
-                FailureKind.OPERATION,
+                FailureKind.REMOTE_FAILED,
             ) from exc
         payload: Any
         try:
@@ -170,17 +170,17 @@ class RepositoryHost:
                 "remote_auth_failed",
                 f"{self.name} rejected the {credentials.source}: {error['message']}. "
                 f"{self.rejected_credentials_hint or self.credentials_hint}",
-                FailureKind.OPERATION,
+                FailureKind.REMOTE_FAILED,
             )
         if error.get("status") == 403:
             raise Failure(
                 "remote_permission_denied",
                 f"{self.name} accepted the {credentials.source} but refused {error.get('path')}: {error['message']}. "
                 f"{self.missing_permission_hint}",
-                FailureKind.OPERATION,
+                FailureKind.REMOTE_FAILED,
             )
         raise Failure(
-            "remote_unavailable", f"{self.name} API request failed: {error.get('message')}", FailureKind.OPERATION
+            "remote_unavailable", f"{self.name} API request failed: {error.get('message')}", FailureKind.REMOTE_FAILED
         )
 
 

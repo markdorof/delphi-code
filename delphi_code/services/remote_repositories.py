@@ -23,7 +23,7 @@ def hosts_with_credentials() -> Sequence[RepositoryHost]:
         raise Failure(
             "remote_auth_missing",
             "Picking repositories needs Bitbucket or GitHub credentials: set BITBUCKET_USERNAME and BITBUCKET_APP_PASSWORD or GITHUB_TOKEN, sign in with gh auth login, or store git credentials for bitbucket.org or github.com",
-            FailureKind.RUNTIME_ASSETS,
+            FailureKind.PREREQUISITE_MISSING,
         )
     return hosts
 
@@ -43,7 +43,7 @@ def owners_if_listable(host: RepositoryHost, progress: Progress) -> list[Owner] 
     finally:
         progress.listing_finished()
     if not owners:
-        raise Failure("remote_empty", f"Your {host.name} account has no repositories", FailureKind.USAGE)
+        raise Failure("remote_empty", f"Your {host.name} account has no repositories", FailureKind.NOT_FOUND)
     return owners
 
 
@@ -55,7 +55,9 @@ def repositories_of_owner(host: RepositoryHost, owner: str, progress: Progress) 
         progress.listing_finished()
     if not repositories:
         raise Failure(
-            "remote_empty", f"You have no repositories in the {host.name} {host.owner_noun} {owner}", FailureKind.USAGE
+            "remote_empty",
+            f"You have no repositories in the {host.name} {host.owner_noun} {owner}",
+            FailureKind.NOT_FOUND,
         )
     return repositories
 

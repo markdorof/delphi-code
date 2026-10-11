@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 class Parser(argparse.ArgumentParser):
     def error(self, message):
-        raise Failure("usage", message, FailureKind.USAGE)
+        raise Failure("usage", message, FailureKind.INVALID_REQUEST)
 
 
 def arguments() -> argparse.Namespace:

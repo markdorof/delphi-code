@@ -38,7 +38,7 @@ Front ends import services, the domain, and infrastructure only to construct thi
 
 **Names over comments.** Make names carry the meaning and default to no comments or docstrings. Keep a comment only for a non-obvious *why* that no name can express. Replace magic values with named constants.
 
-**Errors.** Raise `Failure(code, message, FailureKind.X)` from `errors.py`. `code` is the stable machine-readable identifier; `FailureKind` says what went wrong, and each front end maps it, such as `cli/terminal/output.py` to the exit codes in the README. The message tells the user how to recover.
+**Errors.** Raise `Failure(code, message, FailureKind.X)` from `errors.py`. `code` is the stable machine-readable identifier; `FailureKind` says what went wrong, not how a front end reports it: pick the kind that describes the cause (a project that does not exist is `NOT_FOUND`, a locked index is `BUSY`), and let each front end map it, such as `cli/terminal/output.py` to the exit codes in the README. The message tells the user how to recover.
 
 **Tests.** Test behaviour through public seams: the CLI entry points, `LocalModel.inspect` (replaced by `tests/fakes.FakeModel`), and `projects.index_checkout`. Do not patch private helpers.
 

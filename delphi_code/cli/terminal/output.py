@@ -8,10 +8,14 @@ from .text_layout import TextStyle, TextView
 
 OUTPUT_SCHEMA_VERSION = 1
 EXIT_CODE_BY_FAILURE_KIND = {
-    FailureKind.USAGE: 2,
-    FailureKind.RUNTIME_ASSETS: 3,
-    FailureKind.INDEX_STATE: 4,
-    FailureKind.OPERATION: 5,
+    FailureKind.INVALID_REQUEST: 2,
+    FailureKind.NOT_FOUND: 2,
+    FailureKind.INVALID_CONFIGURATION: 2,
+    FailureKind.PREREQUISITE_MISSING: 3,
+    FailureKind.INDEX_NOT_READY: 4,
+    FailureKind.BUSY: 5,
+    FailureKind.REMOTE_FAILED: 5,
+    FailureKind.OPERATION_FAILED: 5,
 }
 
 

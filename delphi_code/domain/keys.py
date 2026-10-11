@@ -51,6 +51,6 @@ def match_key(name, candidates, project_key_of_path: Callable[[Path], str]):
         raise Failure(
             "project_ambiguous",
             f"Multiple projects match {name}: {', '.join(sorted(matches))}. Use a longer key or an explicit path.",
-            FailureKind.USAGE,
+            FailureKind.INVALID_REQUEST,
         )
     return matches.pop() if matches else None

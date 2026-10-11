@@ -3,6 +3,7 @@ from pathlib import Path
 import unittest
 from unittest.mock import Mock, call, patch
 
+from delphi_code.cli.terminal.output import EXIT_CODE_BY_FAILURE_KIND
 from delphi_code.cli.terminal.progress import StatusLine, TerminalProgress
 from delphi_code.domain.errors import Failure, FailureKind
 from delphi_code.services.progress import Stage
@@ -80,7 +81,7 @@ class RepositoryLines(unittest.TestCase):
         self.progress.files_embedded(4, 9)
         self.progress.repository_finished({"unchanged": True})
         self.progress.repository_finished({"unchanged": False, "files": 9, "chunks": 30})
-        self.progress.repository_failed(Failure("remote_unavailable", "git failed", FailureKind.OPERATION))
+        self.progress.repository_failed(Failure("remote_unavailable", "git failed", FailureKind.REMOTE_FAILED))
         self.line.stage.assert_called_once_with("cloning")
         self.line.count.assert_called_once_with("embedding", 4, 9, "files")
         self.assertEqual(
@@ -100,6 +101,12 @@ class RepositoryLines(unittest.TestCase):
         self.progress.model_setup_finished(reused=True)
         self.line.begin.assert_called_once_with("model minilm")
         self.line.end.assert_called_once_with("✓", "already installed")
+
+
+class ExitCodes(unittest.TestCase):
+    def test_every_failure_kind_exits_with_a_documented_code(self):
+        self.assertEqual(set(EXIT_CODE_BY_FAILURE_KIND), set(FailureKind))
+        self.assertLessEqual(set(EXIT_CODE_BY_FAILURE_KIND.values()), {2, 3, 4, 5})
 
 
 if __name__ == "__main__":

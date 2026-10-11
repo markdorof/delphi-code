@@ -2,10 +2,14 @@ from enum import StrEnum
 
 
 class FailureKind(StrEnum):
-    USAGE = "usage"
-    RUNTIME_ASSETS = "runtime_assets"
-    INDEX_STATE = "index_state"
-    OPERATION = "operation"
+    INVALID_REQUEST = "invalid_request"
+    NOT_FOUND = "not_found"
+    INVALID_CONFIGURATION = "invalid_configuration"
+    PREREQUISITE_MISSING = "prerequisite_missing"
+    INDEX_NOT_READY = "index_not_ready"
+    BUSY = "busy"
+    REMOTE_FAILED = "remote_failed"
+    OPERATION_FAILED = "operation_failed"
 
 
 class Failure(Exception):
@@ -20,8 +24,8 @@ class Failure(Exception):
         if isinstance(exc, Failure):
             return exc
         if isinstance(exc, ModuleNotFoundError):
-            return cls("dependency_missing", str(exc), FailureKind.RUNTIME_ASSETS)
-        return cls("runtime_error", str(exc), FailureKind.OPERATION)
+            return cls("dependency_missing", str(exc), FailureKind.PREREQUISITE_MISSING)
+        return cls("runtime_error", str(exc), FailureKind.OPERATION_FAILED)
 
     def to_json(self) -> dict:
         return {"code": self.code, "message": str(self)}

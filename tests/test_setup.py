@@ -79,7 +79,7 @@ class Setup(unittest.TestCase):
         with (
             patch(
                 "delphi_code.services.model_installation.diagnose",
-                side_effect=Failure("broken", "diagnostic failed", FailureKind.OPERATION),
+                side_effect=Failure("broken", "diagnostic failed", FailureKind.OPERATION_FAILED),
             ),
             self.assertRaises(Failure),
         ):

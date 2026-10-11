@@ -70,7 +70,9 @@ def _for_each_agent(
     agents = supported_agents()
     if unknown := sorted(set(requested_names) - {agent.name for agent in agents}):
         supported = ", ".join(agent.name for agent in agents)
-        raise Failure("usage", f"Unknown agent: {', '.join(unknown)}. Supported: {supported}", FailureKind.USAGE)
+        raise Failure(
+            "usage", f"Unknown agent: {', '.join(unknown)}. Supported: {supported}", FailureKind.INVALID_REQUEST
+        )
     if not requested_names:
         return [change(agent) for agent in agents if agent.installed()]
     return [

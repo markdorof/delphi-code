@@ -48,7 +48,7 @@ def provision(model_location: str, import_from: str | None = None, progress: Pro
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
             raise Failure(
-                "setup_busy", "Another setup is running for this model; retry when it finishes", FailureKind.OPERATION
+                "setup_busy", "Another setup is running for this model; retry when it finishes", FailureKind.BUSY
             ) from exc
         if destination.exists():
             logger.info("Verifying existing model at %s", destination)
@@ -59,7 +59,7 @@ def provision(model_location: str, import_from: str | None = None, progress: Pro
                 raise Failure(
                     exc.code,
                     f"{exc}. Existing assets were preserved. Move {destination} aside, then rerun delphi-code setup",
-                    FailureKind.RUNTIME_ASSETS,
+                    FailureKind.PREREQUISITE_MISSING,
                 ) from exc
             progress.stage_started(Stage.CHECKING_INSTALLATION)
             diagnostics = diagnose(destination)

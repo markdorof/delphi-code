@@ -135,4 +135,4 @@ def _asset_digest(directory: Path) -> str:
 
 
 def _model_failure(code: str, message: str) -> Failure:
-    return Failure(code, message, FailureKind.RUNTIME_ASSETS)
+    return Failure(code, message, FailureKind.PREREQUISITE_MISSING)
