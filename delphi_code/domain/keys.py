@@ -3,7 +3,7 @@ from pathlib import Path
 import re
 from urllib.parse import urlsplit
 
-from .errors import ExitCode, Failure
+from .errors import Failure, FailureKind
 
 SCP_STYLE_REMOTE = re.compile(r"^(?:[^@/]+@)?([^:/]+):(?!//)(.+)$")
 HOSTNAME = re.compile(r"[a-z0-9-]+(\.[a-z0-9-]+)*")
@@ -51,6 +51,6 @@ def match_key(name, candidates, project_key_of_path: Callable[[Path], str]):
         raise Failure(
             "project_ambiguous",
             f"Multiple projects match {name}: {', '.join(sorted(matches))}. Use a longer key or an explicit path.",
-            ExitCode.USAGE,
+            FailureKind.USAGE,
         )
     return matches.pop() if matches else None

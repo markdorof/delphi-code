@@ -1,6 +1,6 @@
 import sys
 
-from ..domain.errors import ExitCode, Failure
+from ..domain.errors import Failure, FailureKind
 from .repository_list import ask_repositories
 
 
@@ -16,7 +16,7 @@ class TerminalPrompts:
             return self._terminal
         if not (sys.stdin.isatty() and sys.stderr.isatty()):
             raise Failure(
-                "usage", "Pass SOURCE arguments, or run add in a terminal to pick repositories", ExitCode.USAGE
+                "usage", "Pass SOURCE arguments, or run add in a terminal to pick repositories", FailureKind.USAGE
             )
         from prompt_toolkit.input import create_input
         from prompt_toolkit.output import create_output

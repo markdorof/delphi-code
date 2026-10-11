@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 import tomllib
 
-from ..domain.errors import ExitCode, Failure
+from ..domain.errors import Failure, FailureKind
 from ..domain.keys import local_key
 from ..domain.selection import FileSelection
 from .paths import registry_path
@@ -31,7 +31,7 @@ class Entry:
     def origin(self) -> Source:
         origin = source_from_registry(self.source)
         if origin is None:
-            raise Failure("registry_invalid", f"Unsupported project source: {self.source}", ExitCode.USAGE)
+            raise Failure("registry_invalid", f"Unsupported project source: {self.source}", FailureKind.USAGE)
         return origin
 
     @property
@@ -72,14 +72,14 @@ class Registry:
         except FileNotFoundError:
             return []
         except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
-            raise Failure("registry_invalid", f"Cannot read {self.path}: {exc}", ExitCode.USAGE) from exc
+            raise Failure("registry_invalid", f"Cannot read {self.path}: {exc}", FailureKind.USAGE) from exc
         tables = data.get("repo", [])
         well_formed = isinstance(tables, list) and all(_is_well_formed_table(table) for table in tables)
         if set(data) - {"repo"} or not well_formed:
             raise Failure(
                 "registry_invalid",
                 f"{self.path}: expected [[repo]] tables with a source (an absolute path, bitbucket.org/workspace/repository, or github.com/owner/repository), optional key and ref strings, optional string lists paths, languages and ignores, and a positive integer max_bytes",
-                ExitCode.USAGE,
+                FailureKind.USAGE,
             )
         return [Entry.from_toml(table) for table in tables]
 

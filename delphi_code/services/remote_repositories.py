@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from ..domain.errors import ExitCode, Failure
+from ..domain.errors import Failure, FailureKind
 from ..domain.selection import FileSelection
 from ..domain.tracking_changes import TrackingChanges
 from ..infrastructure.registry import Registry
@@ -23,7 +23,7 @@ def hosts_with_credentials() -> Sequence[RepositoryHost]:
         raise Failure(
             "remote_auth_missing",
             "Picking repositories needs Bitbucket or GitHub credentials: set BITBUCKET_USERNAME and BITBUCKET_APP_PASSWORD or GITHUB_TOKEN, sign in with gh auth login, or store git credentials for bitbucket.org or github.com",
-            ExitCode.RUNTIME_ASSETS,
+            FailureKind.RUNTIME_ASSETS,
         )
     return hosts
 
@@ -43,7 +43,7 @@ def owners_if_listable(host: RepositoryHost, progress: Progress) -> list[Owner] 
     finally:
         progress.listing_finished()
     if not owners:
-        raise Failure("remote_empty", f"Your {host.name} account has no repositories", ExitCode.USAGE)
+        raise Failure("remote_empty", f"Your {host.name} account has no repositories", FailureKind.USAGE)
     return owners
 
 
@@ -55,7 +55,7 @@ def repositories_of_owner(host: RepositoryHost, owner: str, progress: Progress) 
         progress.listing_finished()
     if not repositories:
         raise Failure(
-            "remote_empty", f"You have no repositories in the {host.name} {host.owner_noun} {owner}", ExitCode.USAGE
+            "remote_empty", f"You have no repositories in the {host.name} {host.owner_noun} {owner}", FailureKind.USAGE
         )
     return repositories
 

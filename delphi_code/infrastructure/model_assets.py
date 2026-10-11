@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-from ..domain.errors import ExitCode, Failure
+from ..domain.errors import Failure, FailureKind
 from .model import is_incidental_asset
 
 PROVENANCE_FILE = Path(__file__).with_name("model_provenance.json")
@@ -18,11 +18,11 @@ def verify_assets(root: Path) -> dict:
     for name, expected in provenance["sha256"].items():
         path = root / name
         if not path.is_file() or path.is_symlink():
-            raise Failure("model_invalid", f"Missing or linked model asset: {path}", ExitCode.RUNTIME_ASSETS)
+            raise Failure("model_invalid", f"Missing or linked model asset: {path}", FailureKind.RUNTIME_ASSETS)
         with path.open("rb") as stream:
             actual = hashlib.file_digest(stream, "sha256").hexdigest()
         if actual != expected:
-            raise Failure("model_invalid", f"Model asset checksum mismatch: {path}", ExitCode.RUNTIME_ASSETS)
+            raise Failure("model_invalid", f"Model asset checksum mismatch: {path}", FailureKind.RUNTIME_ASSETS)
     allowed = set(provenance["sha256"]) | {"provenance.json"}
     for path in root.rglob("*"):
         if (
@@ -30,7 +30,7 @@ def verify_assets(root: Path) -> dict:
             and path.is_file()
             and path.relative_to(root).as_posix() not in allowed
         ):
-            raise Failure("model_invalid", f"Unexpected model asset: {path}", ExitCode.RUNTIME_ASSETS)
+            raise Failure("model_invalid", f"Unexpected model asset: {path}", FailureKind.RUNTIME_ASSETS)
     return provenance
 
 
@@ -48,5 +48,5 @@ def download(destination: Path):
         raise Failure(
             "setup_download_failed",
             f"Model download failed ({last_error_line[0]}); check connectivity and rerun delphi-code setup, or use delphi-code setup --from /path/to/model",
-            ExitCode.RUNTIME_ASSETS,
+            FailureKind.RUNTIME_ASSETS,
         )

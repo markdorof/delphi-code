@@ -3,7 +3,7 @@ from pathlib import Path
 import unittest
 from unittest.mock import Mock, call, patch
 
-from delphi_code.domain.errors import ExitCode, Failure
+from delphi_code.domain.errors import Failure, FailureKind
 from delphi_code.services.progress import Stage
 from delphi_code.ui.terminal import StatusLine, TerminalProgress
 
@@ -80,7 +80,7 @@ class RepositoryLines(unittest.TestCase):
         self.progress.files_embedded(4, 9)
         self.progress.repository_finished({"unchanged": True})
         self.progress.repository_finished({"unchanged": False, "files": 9, "chunks": 30})
-        self.progress.repository_failed(Failure("remote_unavailable", "git failed", ExitCode.OPERATION))
+        self.progress.repository_failed(Failure("remote_unavailable", "git failed", FailureKind.OPERATION))
         self.line.stage.assert_called_once_with("cloning")
         self.line.count.assert_called_once_with("embedding", 4, 9, "files")
         self.assertEqual(

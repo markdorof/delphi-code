@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
-from ..domain.errors import ExitCode, Failure
+from ..domain.errors import Failure, FailureKind
 
 if TYPE_CHECKING:
     import numpy as np
@@ -135,4 +135,4 @@ def _asset_digest(directory: Path) -> str:
 
 
 def _model_failure(code: str, message: str) -> Failure:
-    return Failure(code, message, ExitCode.RUNTIME_ASSETS)
+    return Failure(code, message, FailureKind.RUNTIME_ASSETS)

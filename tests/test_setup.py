@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from unittest.mock import Mock, call, patch
 
-from delphi_code.domain.errors import ExitCode, Failure
+from delphi_code.domain.errors import Failure, FailureKind
 from delphi_code.infrastructure.model_assets import download, verify_assets
 from delphi_code.infrastructure.offline import without_network
 from delphi_code.infrastructure.paths import data_directory
@@ -79,7 +79,7 @@ class Setup(unittest.TestCase):
         with (
             patch(
                 "delphi_code.services.model_installation.diagnose",
-                side_effect=Failure("broken", "diagnostic failed", ExitCode.OPERATION),
+                side_effect=Failure("broken", "diagnostic failed", FailureKind.OPERATION),
             ),
             self.assertRaises(Failure),
         ):

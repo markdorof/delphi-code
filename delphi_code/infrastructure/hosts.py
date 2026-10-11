@@ -12,7 +12,7 @@ from urllib.parse import quote, urlencode, urlsplit
 from urllib.request import Request, urlopen
 
 if __package__:
-    from ..domain.errors import ExitCode, Failure
+    from ..domain.errors import Failure, FailureKind
 
 PAGE_LENGTH = 100
 REQUEST_TIMEOUT_SECONDS = 60
@@ -115,7 +115,7 @@ class RepositoryHost:
             raise Failure(
                 "remote_auth_missing",
                 f"Listing {self.name} repositories needs credentials: {self.credentials_hint}",
-                ExitCode.RUNTIME_ASSETS,
+                FailureKind.RUNTIME_ASSETS,
             )
         return credentials
 
@@ -155,7 +155,7 @@ class RepositoryHost:
             raise Failure(
                 "remote_unavailable",
                 f"{self.name} did not answer within {LISTING_TIMEOUT_SECONDS} seconds",
-                ExitCode.OPERATION,
+                FailureKind.OPERATION,
             ) from exc
         payload: Any
         try:
@@ -170,17 +170,17 @@ class RepositoryHost:
                 "remote_auth_failed",
                 f"{self.name} rejected the {credentials.source}: {error['message']}. "
                 f"{self.rejected_credentials_hint or self.credentials_hint}",
-                ExitCode.OPERATION,
+                FailureKind.OPERATION,
             )
         if error.get("status") == 403:
             raise Failure(
                 "remote_permission_denied",
                 f"{self.name} accepted the {credentials.source} but refused {error.get('path')}: {error['message']}. "
                 f"{self.missing_permission_hint}",
-                ExitCode.OPERATION,
+                FailureKind.OPERATION,
             )
         raise Failure(
-            "remote_unavailable", f"{self.name} API request failed: {error.get('message')}", ExitCode.OPERATION
+            "remote_unavailable", f"{self.name} API request failed: {error.get('message')}", FailureKind.OPERATION
         )
 
 

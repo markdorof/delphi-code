@@ -40,7 +40,7 @@ Lower layers never import `cli`, and no module below `cli` sees an `argparse.Nam
 
 **Names over comments.** Make names carry the meaning and default to no comments or docstrings. Keep a comment only for a non-obvious *why* that no name can express. Replace magic values with named constants.
 
-**Errors.** Raise `Failure(code, message, ExitCode.X)` from `errors.py`. `code` is the stable machine-readable identifier; `ExitCode` follows the table in the README. The message tells the user how to recover.
+**Errors.** Raise `Failure(code, message, FailureKind.X)` from `errors.py`. `code` is the stable machine-readable identifier; `FailureKind` says what went wrong, and each front end maps it: `ui/output.py` to the exit codes in the README. The message tells the user how to recover.
 
 **Tests.** Test behaviour through public seams: the CLI entry points, `LocalModel.inspect` (replaced by `tests/fakes.FakeModel`), and `projects.index_checkout`. Do not patch private helpers.
 

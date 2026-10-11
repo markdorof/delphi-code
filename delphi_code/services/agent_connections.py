@@ -2,7 +2,7 @@ from collections.abc import Callable
 from dataclasses import asdict, replace
 
 from ..domain.agent_connection import AgentConnection, Outcome
-from ..domain.errors import ExitCode, Failure
+from ..domain.errors import Failure, FailureKind
 from ..infrastructure.agent_configs import AgentConfig, install_skill, remove_skill, supported_agents
 from .progress import SILENT, Progress
 
@@ -70,7 +70,7 @@ def _for_each_agent(
     agents = supported_agents()
     if unknown := sorted(set(requested_names) - {agent.name for agent in agents}):
         supported = ", ".join(agent.name for agent in agents)
-        raise Failure("usage", f"Unknown agent: {', '.join(unknown)}. Supported: {supported}", ExitCode.USAGE)
+        raise Failure("usage", f"Unknown agent: {', '.join(unknown)}. Supported: {supported}", FailureKind.USAGE)
     if not requested_names:
         return [change(agent) for agent in agents if agent.installed()]
     return [

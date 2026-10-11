@@ -17,7 +17,7 @@ from prompt_toolkit.output import DummyOutput
 
 from delphi_code.controllers import indexing as indexing_controller
 from delphi_code.controllers import repository_picking
-from delphi_code.domain.errors import ExitCode, Failure
+from delphi_code.domain.errors import Failure, FailureKind
 from delphi_code.domain.tracking_changes import TrackingChanges
 from delphi_code.infrastructure import hosts
 from delphi_code.infrastructure.hosts import Bitbucket, GitHub, Owner, Repository, configured_hosts
@@ -122,7 +122,7 @@ class Picking(unittest.TestCase):
             self.assertIsNone(pick(two_hosts, set()))
 
     def test_owner_is_typed_when_listing_owners_is_forbidden(self):
-        forbidden = Failure("remote_permission_denied", "lacks read:workspace:bitbucket", ExitCode.OPERATION)
+        forbidden = Failure("remote_permission_denied", "lacks read:workspace:bitbucket", FailureKind.OPERATION)
         host = FakeHost(forbidden, ACME, suggested_owner="acme")
         with (
             patch("questionary.text", answering("  acme ")) as text,
@@ -137,7 +137,7 @@ class Picking(unittest.TestCase):
                 self.assertIsNone(pick([FakeHost(forbidden, ACME)], set()))
 
     def test_other_listing_failures_are_not_turned_into_questions(self):
-        unavailable = Failure("remote_unavailable", "down", ExitCode.OPERATION)
+        unavailable = Failure("remote_unavailable", "down", FailureKind.OPERATION)
         with patch("questionary.text") as text, self.assertRaises(Failure) as raised:
             pick([FakeHost(unavailable, ACME)], set())
         self.assertEqual(raised.exception.code, "remote_unavailable")
@@ -197,7 +197,7 @@ class Picking(unittest.TestCase):
         self.assertEqual(raised.exception.code, "remote_auth_missing")
 
     def test_listing_progress_ends_before_each_question(self):
-        forbidden = Failure("remote_permission_denied", "lacks read:workspace:bitbucket", ExitCode.OPERATION)
+        forbidden = Failure("remote_permission_denied", "lacks read:workspace:bitbucket", FailureKind.OPERATION)
         progress = MagicMock(spec=Progress)
         prompts = MagicMock(spec=TerminalPrompts)
         prompts.type_owner.side_effect = lambda host: progress.mock_calls.append("type_owner") or "acme"

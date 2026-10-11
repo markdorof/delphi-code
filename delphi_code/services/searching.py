@@ -1,4 +1,4 @@
-from ..domain.errors import ExitCode, Failure
+from ..domain.errors import Failure, FailureKind
 from ..domain.manifest import Manifest
 from ..infrastructure.model import LocalModel
 from ..infrastructure.offline import without_network
@@ -12,7 +12,7 @@ MAX_SEARCH_LIMIT = 1000
 class SearchRequest:
     def __init__(self, query: str, paths: list[str], languages: list[str], limit: int):
         if not query.strip():
-            raise Failure("usage", "Query must be nonempty", ExitCode.USAGE)
+            raise Failure("usage", "Query must be nonempty", FailureKind.USAGE)
         self.query = query
         self.paths = paths
         self.languages = languages
@@ -49,11 +49,11 @@ def search_everywhere(store: Store, request: SearchRequest, model_location: str)
         raise Failure(
             "index_missing",
             "No indexes exist; run delphi-code index -p /absolute/path/to/project first",
-            ExitCode.INDEX_STATE,
+            FailureKind.INDEX_STATE,
         )
     if unrecognized:
         raise Failure(
-            "index_incompatible", f"{unrecognized[0]}: Index has no valid project identity", ExitCode.INDEX_STATE
+            "index_incompatible", f"{unrecognized[0]}: Index has no valid project identity", FailureKind.INDEX_STATE
         )
     model = open_model(model_location)
     query_vector = _query_vector(model, request)
@@ -69,7 +69,7 @@ def search_everywhere(store: Store, request: SearchRequest, model_location: str)
                 )
                 projects.append(project or index.key)
         except Failure as exc:
-            raise Failure(exc.code, f"{index.directory}: {exc}", exc.exit_code) from exc
+            raise Failure(exc.code, f"{index.directory}: {exc}", exc.kind) from exc
     results.sort(
         key=lambda row: (row["distance"], row["key"], row["path"], row["start_line"], row["end_line"], row["text"])
     )

@@ -3,10 +3,16 @@ import json
 import os
 import sys
 
-from ..domain.errors import Failure
+from ..domain.errors import Failure, FailureKind
 from .text_layout import TextStyle, TextView
 
 OUTPUT_SCHEMA_VERSION = 1
+EXIT_CODE_BY_FAILURE_KIND = {
+    FailureKind.USAGE: 2,
+    FailureKind.RUNTIME_ASSETS: 3,
+    FailureKind.INDEX_STATE: 4,
+    FailureKind.OPERATION: 5,
+}
 
 
 def stdout_reserved_for_result():
@@ -28,7 +34,7 @@ def write_json_failure(command: str | None, failure: Failure) -> int:
     if failure.data is not None:
         payload["data"] = failure.data
     _write_json(payload)
-    return failure.exit_code
+    return EXIT_CODE_BY_FAILURE_KIND[failure.kind]
 
 
 def write_text_success(views: list[TextView]) -> int:
@@ -41,7 +47,7 @@ def write_text_success(views: list[TextView]) -> int:
 
 def write_text_failure(failure: Failure) -> int:
     _write_failure_message(failure)
-    return failure.exit_code
+    return EXIT_CODE_BY_FAILURE_KIND[failure.kind]
 
 
 def failure_of(exc: Exception) -> Failure:

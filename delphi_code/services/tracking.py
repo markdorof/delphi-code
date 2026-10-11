@@ -1,4 +1,4 @@
-from ..domain.errors import ExitCode, Failure
+from ..domain.errors import Failure, FailureKind
 from ..domain.keys import match_key
 from ..domain.selection import FileSelection
 from ..domain.tracking_changes import TrackingChanges
@@ -70,7 +70,7 @@ def remove_project(store: Store, registry: Registry, name: str, keep_index: bool
         ]
         key = match_key(name, candidates, project_key)
         if key is None:
-            raise Failure("project_missing", f"No tracked project or index matches {name}", ExitCode.USAGE)
+            raise Failure("project_missing", f"No tracked project or index matches {name}", FailureKind.USAGE)
         untracked = key in keys
         entries[:] = [entry for candidate, entry in zip(keys, entries, strict=True) if candidate != key]
         deleted = None if keep_index else _delete_index(store, key)
@@ -81,9 +81,9 @@ def _entry_for(origin: Source, ref: str | None, selection: FileSelection) -> Ent
     if not isinstance(origin, LocalSource):
         return Entry(origin.key, selection=selection, ref=ref)
     if not origin.path.is_dir():
-        raise Failure("project_missing", f"Project directory does not exist: {origin.path}", ExitCode.USAGE)
+        raise Failure("project_missing", f"Project directory does not exist: {origin.path}", FailureKind.USAGE)
     if ref:
-        raise Failure("usage", f"--ref applies only to remote repositories, not {origin.path}", ExitCode.USAGE)
+        raise Failure("usage", f"--ref applies only to remote repositories, not {origin.path}", FailureKind.USAGE)
     return Entry(str(origin.path), origin.key, selection)
 
 

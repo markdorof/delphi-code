@@ -10,7 +10,7 @@ from cocoindex.resources.schema import VectorSchema
 import numpy as np
 from numpy.typing import NDArray
 
-from ..domain.errors import ExitCode, Failure
+from ..domain.errors import Failure, FailureKind
 from .files import SourceFile
 from .model import LocalModel
 
@@ -108,6 +108,6 @@ def _storage_environment(directory: Path, provider=None):
             raise Failure(
                 "sandbox_storage_denied",
                 "Sandbox denied CocoIndex storage initialization; use a sandbox allowing its native storage operations while keeping network access denied",
-                ExitCode.RUNTIME_ASSETS,
+                FailureKind.RUNTIME_ASSETS,
             ) from exc
         raise

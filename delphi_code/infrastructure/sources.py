@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 from typing import NamedTuple
 
-from ..domain.errors import ExitCode, Failure
+from ..domain.errors import Failure, FailureKind
 from ..domain.keys import is_explicit_path, normalize_remote
 from .hosts import HOSTS_BY_DOMAIN
 from .project_identity import project_key
@@ -53,7 +53,7 @@ class LocalSource:
     @contextmanager
     def checkout(self, ref=None, revision=None):
         if not self.path.is_dir():
-            raise Failure("project_missing", f"Project directory does not exist: {self.path}", ExitCode.USAGE)
+            raise Failure("project_missing", f"Project directory does not exist: {self.path}", FailureKind.USAGE)
         yield Checkout(self.path, self.path, {"kind": "local", "key": self.key})
 
 
@@ -110,7 +110,7 @@ class GitRemoteSource:
         )
         commit = next((value for value, name in advertised if name == "HEAD" and not value.startswith("ref: ")), None)
         if not (branch and commit):
-            raise Failure("remote_empty", f"{self.key} has no default branch", ExitCode.OPERATION)
+            raise Failure("remote_empty", f"{self.key} has no default branch", FailureKind.OPERATION)
         return Revision(branch, commit)
 
     def _named_revision(self, ref):
@@ -120,7 +120,7 @@ class GitRemoteSource:
             commits.get(f"refs/heads/{ref}") or commits.get(f"refs/tags/{ref}^{{}}") or commits.get(f"refs/tags/{ref}")
         )
         if not commit:
-            raise Failure("remote_ref_missing", f"{self.key} has no branch or tag named {ref}", ExitCode.OPERATION)
+            raise Failure("remote_ref_missing", f"{self.key} has no branch or tag named {ref}", FailureKind.OPERATION)
         return Revision(ref, commit)
 
     def _remote_refs(self, *patterns):
@@ -157,10 +157,12 @@ def run_git(args, key, credentials, credentials_hint):
                 env=environment,
             )
         except FileNotFoundError as exc:
-            raise Failure("git_missing", "git is required for remote repositories", ExitCode.RUNTIME_ASSETS) from exc
+            raise Failure("git_missing", "git is required for remote repositories", FailureKind.RUNTIME_ASSETS) from exc
         except subprocess.TimeoutExpired as exc:
             raise Failure(
-                "remote_unavailable", f"git timed out after {GIT_TIMEOUT_SECONDS} seconds for {key}", ExitCode.OPERATION
+                "remote_unavailable",
+                f"git timed out after {GIT_TIMEOUT_SECONDS} seconds for {key}",
+                FailureKind.OPERATION,
             ) from exc
     if result.returncode == 0:
         return result.stdout
@@ -172,9 +174,9 @@ def run_git(args, key, credentials, credentials_hint):
         raise Failure(
             "remote_auth_failed",
             f"Access to {key} was refused: {last_error_line}. To fix it, {credentials_hint}",
-            ExitCode.OPERATION,
+            FailureKind.OPERATION,
         )
-    raise Failure("remote_unavailable", f"git failed for {key}: {last_error_line}", ExitCode.OPERATION)
+    raise Failure("remote_unavailable", f"git failed for {key}: {last_error_line}", FailureKind.OPERATION)
 
 
 def source_from_registry(text):
@@ -197,6 +199,6 @@ def source_from_argument(text):
         raise Failure(
             "usage",
             f"{text} is neither a project directory nor a repository such as bitbucket.org/workspace/repository or github.com/owner/repository",
-            ExitCode.USAGE,
+            FailureKind.USAGE,
         )
     return source

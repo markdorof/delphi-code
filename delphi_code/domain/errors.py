@@ -1,18 +1,18 @@
-from enum import IntEnum
+from enum import StrEnum
 
 
-class ExitCode(IntEnum):
-    USAGE = 2
-    RUNTIME_ASSETS = 3
-    INDEX_STATE = 4
-    OPERATION = 5
+class FailureKind(StrEnum):
+    USAGE = "usage"
+    RUNTIME_ASSETS = "runtime_assets"
+    INDEX_STATE = "index_state"
+    OPERATION = "operation"
 
 
 class Failure(Exception):
-    def __init__(self, code: str, message: str, exit_code: ExitCode, data: dict | None = None):
+    def __init__(self, code: str, message: str, kind: FailureKind, data: dict | None = None):
         super().__init__(message)
         self.code = code
-        self.exit_code = exit_code
+        self.kind = kind
         self.data = data
 
     @classmethod
@@ -20,8 +20,8 @@ class Failure(Exception):
         if isinstance(exc, Failure):
             return exc
         if isinstance(exc, ModuleNotFoundError):
-            return cls("dependency_missing", str(exc), ExitCode.RUNTIME_ASSETS)
-        return cls("runtime_error", str(exc), ExitCode.OPERATION)
+            return cls("dependency_missing", str(exc), FailureKind.RUNTIME_ASSETS)
+        return cls("runtime_error", str(exc), FailureKind.OPERATION)
 
     def to_json(self) -> dict:
         return {"code": self.code, "message": str(self)}

@@ -10,7 +10,7 @@ import time
 from . import mcp_server
 from .controllers import indexing, installation, project_catalog, searching
 from .controllers.response import ControllerResponse
-from .domain.errors import ExitCode, Failure
+from .domain.errors import Failure, FailureKind
 from .domain.selection import DEFAULT_MAX_BYTES, FileSelection
 from .infrastructure.log_file import write_logs_to_file
 from .infrastructure.paths import model_directory
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 class Parser(argparse.ArgumentParser):
     def error(self, message):
-        raise Failure("usage", message, ExitCode.USAGE)
+        raise Failure("usage", message, FailureKind.USAGE)
 
 
 def arguments() -> argparse.Namespace:

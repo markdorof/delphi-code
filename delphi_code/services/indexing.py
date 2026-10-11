@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from ..domain.errors import ExitCode, Failure
+from ..domain.errors import Failure, FailureKind
 from ..domain.manifest import Manifest
 from ..domain.selection import FileSelection
 from ..infrastructure.model import LocalModel
@@ -24,9 +24,9 @@ def index_local_project(
 ) -> dict:
     project, key, index = store.resolve(name)
     if index and index.project is None:
-        raise Failure("usage", f"{key} is a remote repository; update it with delphi-code sync", ExitCode.USAGE)
+        raise Failure("usage", f"{key} is a remote repository; update it with delphi-code sync", FailureKind.USAGE)
     if project is None or not project.is_dir():
-        raise Failure("project_missing", f"Project directory does not exist: {project}", ExitCode.USAGE)
+        raise Failure("project_missing", f"Project directory does not exist: {project}", FailureKind.USAGE)
     model = open_model(model_location)
     checkout = Checkout(project, project, {"kind": "local", "key": key})
     progress.repository_started(key, 1, 1)
@@ -108,7 +108,7 @@ def sync(
         raise Failure(
             "sync_failed",
             f"{len(failed)} of {len(results)} tracked projects failed: {', '.join(failed)}",
-            ExitCode.OPERATION,
+            FailureKind.OPERATION,
             data,
         )
     return data

@@ -1,6 +1,6 @@
 import shlex
 
-from ..domain.errors import ExitCode, Failure
+from ..domain.errors import Failure, FailureKind
 from ..infrastructure.registry import Registry
 from ..infrastructure.store import Index, ResolvedProject, Store
 
@@ -9,7 +9,7 @@ def resolve_existing(store: Store, name: str) -> ResolvedProject:
     resolved = store.resolve(name)
     directory_exists = resolved.project is not None and resolved.project.is_dir()
     if not directory_exists and resolved.index is None:
-        raise Failure("project_missing", f"Project directory does not exist: {resolved.project}", ExitCode.USAGE)
+        raise Failure("project_missing", f"Project directory does not exist: {resolved.project}", FailureKind.USAGE)
     return resolved
 
 
@@ -19,7 +19,7 @@ def resolve_indexed(store: Store, name: str) -> tuple[str, Index]:
         raise Failure(
             "index_missing",
             f"No index exists; run delphi-code index -p {shlex.quote(str(project))}",
-            ExitCode.INDEX_STATE,
+            FailureKind.INDEX_STATE,
         )
     return key, index
 
