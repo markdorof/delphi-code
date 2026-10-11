@@ -10,6 +10,7 @@ from ..domain.errors import ExitCode, Failure
 from ..infrastructure.model_assets import download, verify_assets
 from ..infrastructure.paths import index_root
 from ..infrastructure.store import Store
+from .agent_connections import connect_agents
 from .progress import SILENT, Progress, Stage
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,15 @@ def diagnose(model: Path) -> dict:
     with tempfile.TemporaryDirectory(prefix=".setup-probe-", dir=root.parent) as scratch:
         asyncio.run(check_storage(Path(scratch)))
     return run_doctor(str(model), Store(), str(Path.cwd()))
+
+
+def set_up(
+    model_location: str, import_from: str | None, progress: Progress, connect_agents_to: str | None = None
+) -> dict:
+    provisioned = provision(model_location, import_from, progress)
+    if connect_agents_to is None:
+        return provisioned
+    return {**provisioned, "agents": connect_agents(connect_agents_to, [], progress)["agents"]}
 
 
 def provision(model_location: str, import_from: str | None = None, progress: Progress = SILENT) -> dict:

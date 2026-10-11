@@ -1,12 +1,11 @@
 from typing import Protocol
 
-from ..domain.errors import ExitCode, Failure
 from ..domain.selection import FileSelection
 from ..domain.tracking_changes import TrackingChanges
 from ..infrastructure.registry import Registry
 from ..infrastructure.store import Store
+from ..services import remote_repositories
 from ..services.progress import Progress
-from ..services.tracking import apply_tracking_changes
 
 
 class Prompts(Protocol):
@@ -25,15 +24,7 @@ def pick_tracking_changes(hosts, tracked_keys, prompts: Prompts, progress: Progr
     owner = _pick_owner(host, prompts, progress)
     if owner is None:
         return None
-    progress.repositories_listing_started(host.name, owner)
-    try:
-        repositories = host.repositories(owner)
-    finally:
-        progress.listing_finished()
-    if not repositories:
-        raise Failure(
-            "remote_empty", f"You have no repositories in the {host.name} {host.owner_noun} {owner}", ExitCode.USAGE
-        )
+    repositories = remote_repositories.repositories_of_owner(host, owner, progress)
     chosen_keys = prompts.choose_repositories(owner, repositories, tracked_keys)
     if chosen_keys is None:
         return None
@@ -46,41 +37,15 @@ def pick_tracking_changes(hosts, tracked_keys, prompts: Prompts, progress: Progr
 def add_picked(
     ref: str | None, selection: FileSelection, model: str, sync_now: bool, progress: Progress, prompts: Prompts
 ) -> dict:
-    from ..infrastructure.hosts import configured_hosts
-
     prompts.require_terminal()
-    hosts = configured_hosts()
-    if not hosts:
-        raise Failure(
-            "remote_auth_missing",
-            "Picking repositories needs Bitbucket or GitHub credentials: set BITBUCKET_USERNAME and BITBUCKET_APP_PASSWORD or GITHUB_TOKEN, sign in with gh auth login, or store git credentials for bitbucket.org or github.com",
-            ExitCode.RUNTIME_ASSETS,
-        )
+    hosts = remote_repositories.hosts_with_credentials()
     store, registry = Store(), Registry()
-    tracked = {entry.current_key() for entry in registry.entries()}
-    changes = pick_tracking_changes(hosts, tracked, prompts, progress)
-    if changes is None:
-        return {"registry": str(registry.path), "cancelled": True, "repos": [], "removed": []}
-    try:
-        applied = apply_tracking_changes(store, registry, changes, ref, selection, model, sync_now, progress)
-    except Failure as failure:
-        failure.data = {**(failure.data or {}), "cancelled": False}
-        raise
-    return {**applied, "cancelled": False}
+    changes = pick_tracking_changes(hosts, remote_repositories.tracked_keys(registry), prompts, progress)
+    return remote_repositories.apply_picked_changes(store, registry, changes, ref, selection, model, sync_now, progress)
 
 
 def _pick_owner(host, prompts: Prompts, progress: Progress) -> str | None:
-    progress.owners_listing_started(host.name, host.owner_noun)
-    try:
-        owners = host.owners()
-    except Failure as failure:
-        if failure.code != "remote_permission_denied":
-            raise
-        owners = None
-    finally:
-        progress.listing_finished()
+    owners = remote_repositories.owners_if_listable(host, progress)
     if owners is None:
         return prompts.type_owner(host)
-    if not owners:
-        raise Failure("remote_empty", f"Your {host.name} account has no repositories", ExitCode.USAGE)
     return owners[0].slug if len(owners) == 1 else prompts.choose_owner(host, owners)

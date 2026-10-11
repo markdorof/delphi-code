@@ -24,7 +24,7 @@ The aim is code a newcomer can read top to bottom without a guide.
 | MCP entry point | `mcp_server.py` | defines one MCP tool per command except `connect` and `disconnect`; calls the same controllers and returns their data as tool results through `infrastructure/mcp_stdio_server.py` |
 | Controllers | `controllers/` | one function per command: calls services, asks through the `Prompts` port (`controllers/repository_picking.py`), and builds the views for its result |
 | User interface | `ui/` | `text_layout.py` (generic terminal text), `views/` (how domain concepts look), `output.py`, `terminal.py`, `prompts.py`, `repository_list.py`; only `domain.errors` and `services.progress` below it |
-| Services | `services/` | what a command does: `indexing`, `searching`, `tracking`, `project_catalog`, `model_installation`, `diagnostics`, `agent_connections`, plus the `Progress` port |
+| Services | `services/` | what a command does: `indexing`, `searching`, `tracking`, `remote_repositories`, `project_catalog`, `model_installation`, `diagnostics`, `agent_connections`, plus the `Progress` port |
 | Infrastructure | `infrastructure/` | disk, git, network and libraries: `store`, `registry`, `model`, `vector_index`, `files`, `sources`, `hosts`, `project_identity`, `model_assets`, `paths`, `offline`, `mcp_stdio_server` (JSON-RPC over stdio, no SDK), `agent_configs` (each agent's MCP config file or CLI) |
 | Domain | `domain/` | pure rules with no I/O: `errors`, `keys`, `manifest`, `selection`, `tracking_changes`, `agent_connection` |
 

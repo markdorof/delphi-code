@@ -1,6 +1,3 @@
-from dataclasses import asdict
-
-from ..domain.agent_connection import AgentConnection
 from ..infrastructure.store import Store
 from ..services.progress import SILENT, Progress
 from ..ui.text_layout import TextView
@@ -19,33 +16,26 @@ def doctor(project: str, model: str) -> ControllerResponse:
 def setup(
     model: str, source: str | None, progress: Progress, connect_agents_to: str | None = None
 ) -> ControllerResponse:
-    from ..services.model_installation import provision
+    from ..services.model_installation import set_up
 
-    provisioned = provision(model, source, progress)
+    installed = set_up(model, source, progress, connect_agents_to)
     views: list[TextView] = [
-        ModelSetupView(
-            provisioned["model"], provisioned["index_root"], provisioned["reused"], provisioned["diagnostics"]
-        )
+        ModelSetupView(installed["model"], installed["index_root"], installed["reused"], installed["diagnostics"])
     ]
-    if connect_agents_to is not None:
-        connected = connect(connect_agents_to, [], progress)
-        provisioned["agents"] = connected.data["agents"]
-        views.extend(connected.views)
-    return ControllerResponse(provisioned, views)
+    if "agents" in installed:
+        views.append(AgentConnectionsView(installed["agents"]))
+    return ControllerResponse(installed, views)
 
 
 def connect(command: str, agents: list[str], progress: Progress = SILENT) -> ControllerResponse:
     from ..services.agent_connections import connect_agents
 
-    return _agent_connections_response(command, connect_agents(command, agents, progress))
+    connected = connect_agents(command, agents, progress)
+    return ControllerResponse(connected, [AgentConnectionsView(connected["agents"])])
 
 
 def disconnect(command: str, agents: list[str]) -> ControllerResponse:
     from ..services.agent_connections import disconnect_agents
 
-    return _agent_connections_response(command, disconnect_agents(command, agents))
-
-
-def _agent_connections_response(command: str, connections: list[AgentConnection]) -> ControllerResponse:
-    data = [asdict(connection) for connection in connections]
-    return ControllerResponse({"command": command, "agents": data}, [AgentConnectionsView(data)])
+    disconnected = disconnect_agents(command, agents)
+    return ControllerResponse(disconnected, [AgentConnectionsView(disconnected["agents"])])
