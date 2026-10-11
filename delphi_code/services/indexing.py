@@ -4,6 +4,7 @@ import asyncio
 import logging
 
 from ..domain.errors import Failure, FailureKind
+from ..domain.indexing_outcomes import IndexingOutcome, ProjectUpToDate, SyncedProject, SyncReport
 from ..domain.manifest import Manifest
 from ..domain.selection import FileSelection
 from ..infrastructure.model import LocalModel
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 @without_network()
 def index_local_project(
     store: Store, name: str, selection: FileSelection, model_location: str, progress: Progress = SILENT
-) -> dict:
+) -> IndexingOutcome:
     project, key, index = store.resolve(name)
     if index and index.project is None:
         raise Failure(
@@ -44,7 +45,7 @@ def index_local_project(
 @without_network()
 def index_checkout(
     store: Store, checkout: Checkout, selection: FileSelection, model: LocalModel, progress: Progress
-) -> dict:
+) -> IndexingOutcome:
     from ..infrastructure.files import collect
     from ..infrastructure.vector_index import build_index
 
@@ -58,7 +59,7 @@ def index_checkout(
         index.write_manifest(manifest)
         total = len(collected.files)
         progress.files_embedded(0, total)
-        incremental = asyncio.run(
+        changes = asyncio.run(
             build_index(
                 index.directory,
                 collected.files,
@@ -70,67 +71,52 @@ def index_checkout(
         manifest = manifest.completed()
         counts = index.counts()
         index.write_manifest(manifest)
-    logger.info("Indexed %s (incremental: %s): %s", checkout.key, incremental, counts)
-    return {
-        "project": optional_path_text(manifest.project),
-        "key": checkout.key,
-        "index_directory": str(index.directory),
-        **manifest.revision,
-        **counts,
-        "skipped": collected.skipped,
-        "incremental": incremental,
-    }
+    logger.info("Indexed %s (changes: %s): %s", checkout.key, changes, counts)
+    return IndexingOutcome(
+        optional_path_text(manifest.project),
+        checkout.key,
+        str(index.directory),
+        manifest.revision,
+        counts,
+        collected.skipped,
+        changes,
+    )
 
 
-def sync_tracked(store: Store, registry: Registry, model_location: str, progress: Progress = SILENT) -> dict:
+def sync_tracked(store: Store, registry: Registry, model_location: str, progress: Progress = SILENT) -> SyncReport:
     return sync(store, registry, registry.entries(), model_location, progress)
 
 
 def sync(
     store: Store, registry: Registry, entries: list[Entry], model_location: str, progress: Progress = SILENT
-) -> dict:
+) -> SyncReport:
     if not entries:
-        return {"registry": str(registry.path), "repos": []}
+        return SyncReport(str(registry.path), [])
     model = open_model(model_location)
-    results = []
+    projects = []
     for position, entry in enumerate(entries, start=1):
         progress.repository_started(entry.current_key(), position, len(entries))
         try:
             result = _sync_entry(store, entry, model, progress)
-            results.append({"source": entry.source, "ok": True, **result})
+            projects.append(SyncedProject(entry.source, result))
             progress.repository_finished(result)
         except Exception as exc:
             logger.exception("Syncing %s failed", entry.source)
             failure = Failure.from_exception(exc)
-            results.append({"source": entry.source, "ok": False, "error": failure.to_json()})
+            projects.append(SyncedProject(entry.source, failure))
             progress.repository_failed(failure)
-    data = {"registry": str(registry.path), "repos": results}
-    failed = [result["source"] for result in results if not result["ok"]]
-    if failed:
-        raise Failure(
-            "sync_failed",
-            f"{len(failed)} of {len(results)} tracked projects failed: {', '.join(failed)}",
-            FailureKind.OPERATION_FAILED,
-            data,
-        )
-    return data
+    return SyncReport(str(registry.path), projects)
 
 
-def _sync_entry(store: Store, entry: Entry, model: LocalModel, progress: Progress) -> dict:
+def _sync_entry(store: Store, entry: Entry, model: LocalModel, progress: Progress) -> IndexingOutcome | ProjectUpToDate:
     origin = entry.origin
     progress.stage_started(Stage.CHECKING_FOR_CHANGES)
     revision = origin.latest_revision(entry.ref)
     index = store.get(origin.key) if revision else None
     if revision and index and index.manifest.holds(revision.commit, entry.selection, model):
         logger.info("%s is unchanged at %s", index.key, revision.commit)
-        return {
-            "unchanged": True,
-            "project": None,
-            "key": index.key,
-            "index_directory": str(index.directory),
-            **index.manifest.revision,
-        }
+        return ProjectUpToDate(index.key, str(index.directory), index.manifest.revision)
     if isinstance(origin, GitRemoteSource):
         progress.stage_started(Stage.CLONING)
     with origin.checkout(entry.ref, revision) as checkout:
-        return {"unchanged": False, **index_checkout(store, checkout, entry.selection, model, progress)}
+        return index_checkout(store, checkout, entry.selection, model, progress)

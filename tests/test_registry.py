@@ -6,7 +6,7 @@ import tomllib
 import unittest
 from unittest.mock import patch
 
-from fakes import use_fake_model
+from fakes import indexing_outcome, use_fake_model
 
 from delphi_code.cli.main import arguments, execute
 from delphi_code.domain.errors import Failure
@@ -37,7 +37,7 @@ class RegistryCommands(unittest.TestCase):
             key = checkout.key
             self.indexed.append((checkout.project, key, options))
             index = store.get_or_create(key, checkout.project)
-            return {"project": str(checkout.project), "key": key, "index_directory": str(index.directory)}
+            return indexing_outcome(key, str(index.directory), str(checkout.project))
 
         self.enterContext(patch("delphi_code.services.indexing.index_checkout", side_effect=index_checkout))
 
@@ -100,14 +100,14 @@ class RegistryCommands(unittest.TestCase):
                 events.append(("stage", stage))
 
             def repository_finished(self, result):
-                events.append(("finished", result["key"]))
+                events.append(("finished", result.key))
 
             def repository_failed(self, failure):
                 events.append(("failed", failure.code))
 
         registry = Registry()
-        with self.assertRaises(Failure):
-            indexing.sync(Store(), registry, registry.entries(), str(self.root / "model"), Recorder())
+        synced = indexing.sync(Store(), registry, registry.entries(), str(self.root / "model"), Recorder())
+        self.assertEqual([project.failed for project in synced.projects], [True, False])
         self.assertEqual(
             events,
             [

@@ -8,8 +8,11 @@ import tomllib
 import unittest
 from unittest.mock import patch
 
+from fakes import diagnostics
+
 from delphi_code.cli.controllers.installation import connect, disconnect, setup
 from delphi_code.cli.terminal.text_layout import TextStyle
+from delphi_code.domain.diagnostics import ModelSetup
 from delphi_code.domain.errors import Failure
 from delphi_code.mcp_server.tools import delphi_code_tools
 from delphi_code.services.progress import SILENT
@@ -18,7 +21,7 @@ COMMAND = "/opt/bin/delphi-code"
 REPOSITORY = Path(__file__).resolve().parent.parent
 PLUGIN_SKILL = REPOSITORY / "plugin/skills/delphi-code/SKILL.md"
 PACKAGED_SKILL = REPOSITORY / "delphi_code/infrastructure/SKILL.md"
-PROVISIONED = {"model": "/models/m", "index_root": "/indexes", "reused": True, "diagnostics": {}}
+PROVISIONED = ModelSetup("/models/m", "/indexes", True, diagnostics())
 UNCOLORED = TextStyle(colors_enabled=False)
 FAKE_CLAUDE = """#!/bin/sh
 echo "$@" >> "$FAKE_CLAUDE_LOG"
@@ -292,7 +295,7 @@ class ConnectAgents(unittest.TestCase):
 
     def test_setup_connects_agents_unless_asked_not_to(self):
         (self.home / ".cursor").mkdir()
-        with patch("delphi_code.services.model_installation.provision", return_value=dict(PROVISIONED)):
+        with patch("delphi_code.services.model_installation.provision", return_value=PROVISIONED):
             skipped = setup("/models/m", None, SILENT, connect_agents_to=None)
             self.assertNotIn("agents", skipped.data)
             self.assertFalse((self.home / ".cursor/mcp.json").exists())
@@ -303,7 +306,7 @@ class ConnectAgents(unittest.TestCase):
     def test_the_setup_mcp_tool_never_edits_agent_configs(self):
         (self.home / ".cursor").mkdir()
         (setup_tool,) = [tool for tool in delphi_code_tools("/models/m") if tool.name == "setup"]
-        with patch("delphi_code.services.model_installation.provision", return_value=dict(PROVISIONED)):
+        with patch("delphi_code.services.model_installation.provision", return_value=PROVISIONED):
             self.assertNotIn("agents", setup_tool.run({}))
         self.assertFalse((self.home / ".cursor/mcp.json").exists())
 

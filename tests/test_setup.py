@@ -8,6 +8,8 @@ import tempfile
 import unittest
 from unittest.mock import Mock, call, patch
 
+from fakes import diagnostics
+
 from delphi_code.domain.errors import Failure, FailureKind
 from delphi_code.infrastructure.model_assets import download, verify_assets
 from delphi_code.infrastructure.offline import without_network
@@ -35,20 +37,20 @@ class Setup(unittest.TestCase):
 
     def test_import_and_reuse_without_download(self):
         with (
-            patch("delphi_code.services.model_installation.diagnose", return_value={}) as doctor,
+            patch("delphi_code.services.model_installation.diagnose", return_value=diagnostics()) as doctor,
             patch("delphi_code.services.model_installation.download") as download,
         ):
             first = provision(self.args.model, self.args.source)
-            self.assertFalse(first["reused"])
-            self.assertEqual(Path(first["model"]).joinpath("model.safetensors").read_bytes(), b"weights")
+            self.assertFalse(first.reused)
+            self.assertEqual(Path(first.model).joinpath("model.safetensors").read_bytes(), b"weights")
             self.args.source = None
-            self.assertTrue(provision(self.args.model, self.args.source)["reused"])
+            self.assertTrue(provision(self.args.model, self.args.source).reused)
             self.assertEqual(doctor.call_count, 2)
             download.assert_not_called()
 
     def test_reports_each_setup_stage(self):
         progress = Mock(spec=Progress)
-        with patch("delphi_code.services.model_installation.diagnose", return_value={}):
+        with patch("delphi_code.services.model_installation.diagnose", return_value=diagnostics()):
             provision(self.args.model, self.args.source, progress)
             provision(self.args.model, None, progress)
         destination = Path(self.args.model).resolve()

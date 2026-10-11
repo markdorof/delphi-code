@@ -1,12 +1,20 @@
+from dataclasses import replace
 import io
 from pathlib import Path
 import unittest
 from unittest.mock import Mock, call, patch
 
+from fakes import indexing_outcome
+
 from delphi_code.cli.terminal.output import EXIT_CODE_BY_FAILURE_KIND
 from delphi_code.cli.terminal.progress import StatusLine, TerminalProgress
 from delphi_code.domain.errors import Failure, FailureKind
+from delphi_code.domain.index_state import IndexCounts
+from delphi_code.domain.indexing_outcomes import ProjectUpToDate
+from delphi_code.domain.manifest import IndexedRevision
 from delphi_code.services.progress import Stage
+
+UP_TO_DATE = ProjectUpToDate("github.com/owner/one", "/indexes/1", IndexedRevision())
 
 
 class StatusLines(unittest.TestCase):
@@ -53,14 +61,14 @@ class OutcomeLines(unittest.TestCase):
         with progress:
             progress.repository_started("github.com/owner/one", 1, 1)
             self.assertFalse(progress.showed_outcome_lines)
-            progress.repository_finished({"unchanged": True})
+            progress.repository_finished(UP_TO_DATE)
         self.assertTrue(progress.showed_outcome_lines)
 
     def test_never_reports_outcome_lines_without_a_terminal(self):
         progress = TerminalProgress(StatusLine(None))
         with progress:
             progress.repository_started("github.com/owner/one", 1, 1)
-            progress.repository_finished({"unchanged": True})
+            progress.repository_finished(UP_TO_DATE)
         self.assertFalse(progress.showed_outcome_lines)
 
 
@@ -79,8 +87,8 @@ class RepositoryLines(unittest.TestCase):
     def test_stages_counts_and_outcomes(self):
         self.progress.stage_started(Stage.CLONING)
         self.progress.files_embedded(4, 9)
-        self.progress.repository_finished({"unchanged": True})
-        self.progress.repository_finished({"unchanged": False, "files": 9, "chunks": 30})
+        self.progress.repository_finished(UP_TO_DATE)
+        self.progress.repository_finished(replace(indexing_outcome("one", "/indexes/1"), counts=IndexCounts(9, 30)))
         self.progress.repository_failed(Failure("remote_unavailable", "git failed", FailureKind.REMOTE_FAILED))
         self.line.stage.assert_called_once_with("cloning")
         self.line.count.assert_called_once_with("embedding", 4, 9, "files")

@@ -8,6 +8,7 @@ import time
 from typing import TextIO
 
 from ...domain.errors import Failure
+from ...domain.indexing_outcomes import IndexingOutcome, ProjectUpToDate
 from ...services.progress import Progress, Stage
 
 SPINNER_FRAMES = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
@@ -148,11 +149,11 @@ class TerminalProgress(Progress):
     def files_embedded(self, done: int, total: int):
         self._line.count(Stage.EMBEDDING, done, total, "files")
 
-    def repository_finished(self, result: dict):
-        if result.get("unchanged"):
+    def repository_finished(self, result: IndexingOutcome | ProjectUpToDate):
+        if isinstance(result, ProjectUpToDate):
             self._line.end("✓", "unchanged")
         else:
-            self._line.end("✓", f"{result.get('files', 0)} files, {result.get('chunks', 0)} chunks")
+            self._line.end("✓", f"{result.counts.files} files, {result.counts.chunks} chunks")
 
     def repository_failed(self, failure: Failure):
         self._line.end("✗", str(failure))

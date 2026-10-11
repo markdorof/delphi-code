@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from fakes import use_fake_model
+from fakes import indexing_outcome, use_fake_model
 
 from delphi_code.cli.main import arguments, execute
 from delphi_code.domain.errors import Failure
@@ -185,12 +185,7 @@ class RemoteSync(LocalHostWithApiRepository):
             self.checkouts.append(checkout)
             index = store.get_or_create(checkout.key, checkout.project)
             index.write_manifest(Manifest.for_build(checkout.project, checkout.provenance, options, model).completed())
-            return {
-                "project": None,
-                "key": index.key,
-                "index_directory": str(index.directory),
-                "commit": checkout.provenance.get("commit"),
-            }
+            return indexing_outcome(index.key, str(index.directory), commit=checkout.provenance.get("commit"))
 
         self.enterContext(patch("delphi_code.services.indexing.index_checkout", side_effect=index_checkout))
 

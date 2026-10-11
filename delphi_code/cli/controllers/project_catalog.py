@@ -10,18 +10,18 @@ from .response import ControllerResponse
 
 def status(project: str) -> ControllerResponse:
     state = project_catalog.status(Store(), project)
-    return ControllerResponse(state, [IndexStateView(state)])
+    return ControllerResponse(state.to_json(), [IndexStateView(state)])
 
 
 def list_tracked(only_indexed: bool) -> ControllerResponse:
     listing = project_catalog.list_projects(Store(), Registry(), only_indexed)
-    if not listing["repos"]:
+    if not listing.projects:
         nothing_listed = "No projects are indexed yet." if only_indexed else "No projects are tracked or indexed yet."
-        return ControllerResponse(listing, [Message(nothing_listed, TRACK_A_PROJECT_HINT)])
-    return ControllerResponse(listing, [ProjectTableView(listing["repos"])])
+        return ControllerResponse(listing.to_json(), [Message(nothing_listed, TRACK_A_PROJECT_HINT)])
+    return ControllerResponse(listing.to_json(), [ProjectTableView(listing.projects)])
 
 
 def remove(name: str, keep_index: bool) -> ControllerResponse:
     removal = tracking.remove_project(Store(), Registry(), name, keep_index)
-    view = UntrackedProjectView(removal["key"], removal["untracked"], removal["deleted_index"])
-    return ControllerResponse(removal, [view])
+    view = UntrackedProjectView(removal.key, removal.untracked, removal.deleted_index)
+    return ControllerResponse(removal.to_json(), [view])

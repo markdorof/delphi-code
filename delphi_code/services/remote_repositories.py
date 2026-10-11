@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from ..domain.errors import Failure, FailureKind
 from ..domain.selection import FileSelection
 from ..domain.tracking_changes import TrackingChanges
+from ..domain.tracking_report import TrackingReport
 from ..infrastructure.registry import Registry
 from ..infrastructure.store import Store
 from .progress import Progress
@@ -71,12 +73,8 @@ def apply_picked_changes(
     model_location: str,
     sync_now: bool,
     progress: Progress,
-) -> dict:
+) -> TrackingReport:
     if changes is None:
-        return {"registry": str(registry.path), "cancelled": True, "repos": [], "removed": []}
-    try:
-        applied = apply_tracking_changes(store, registry, changes, ref, selection, model_location, sync_now, progress)
-    except Failure as failure:
-        failure.data = {**(failure.data or {}), "cancelled": False}
-        raise
-    return {**applied, "cancelled": False}
+        return TrackingReport(str(registry.path), [], untracked=[], cancelled=True)
+    applied = apply_tracking_changes(store, registry, changes, ref, selection, model_location, sync_now, progress)
+    return replace(applied, cancelled=False)

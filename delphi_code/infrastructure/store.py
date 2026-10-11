@@ -13,8 +13,10 @@ import sqlite3
 from typing import NamedTuple
 
 from ..domain.errors import Failure, FailureKind
+from ..domain.index_state import IndexCounts
 from ..domain.keys import is_explicit_path, local_key, match_key
 from ..domain.manifest import LEGACY_SCHEMA_VERSION, SCHEMA_VERSION, Manifest
+from ..domain.search_hits import SearchHit
 from .model import LocalModel
 from .paths import index_root
 from .project_identity import project_key
@@ -110,11 +112,12 @@ class Index:
             )
         return manifest
 
-    def counts(self) -> dict:
+    def counts(self) -> IndexCounts:
         with self._database() as db:
-            return dict(db.execute("SELECT count(*) AS chunks, count(DISTINCT path) AS files FROM passages").fetchone())
+            row = db.execute("SELECT count(*) AS chunks, count(DISTINCT path) AS files FROM passages").fetchone()
+        return IndexCounts(files=row["files"], chunks=row["chunks"])
 
-    def search(self, query_vector: bytes, paths: list[str], languages: list[str], limit: int) -> list[dict]:
+    def search(self, query_vector: bytes, paths: list[str], languages: list[str], limit: int) -> list[SearchHit]:
         conditions: list[str] = []
         parameters: list[bytes | str] = [query_vector]
         if languages:
@@ -131,7 +134,7 @@ class Index:
                 "FROM passages" + where + " ORDER BY distance, path, start_line, id LIMIT ?",
                 [*parameters, limit],
             ).fetchall()
-        return [{**dict(row), "score": _cosine_similarity_of_unit_vectors(row["distance"])} for row in rows]
+        return [SearchHit(**row, score=_cosine_similarity_of_unit_vectors(row["distance"])) for row in rows]
 
     @property
     def _manifest_path(self) -> Path:

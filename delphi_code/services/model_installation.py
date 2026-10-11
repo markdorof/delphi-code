@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import replace
 import fcntl
 import json
 import logging
@@ -6,6 +7,7 @@ from pathlib import Path
 import shutil
 import tempfile
 
+from ..domain.diagnostics import Diagnostics, ModelSetup
 from ..domain.errors import Failure, FailureKind
 from ..infrastructure.model_assets import download, verify_assets
 from ..infrastructure.paths import index_root
@@ -16,7 +18,7 @@ from .progress import SILENT, Progress, Stage
 logger = logging.getLogger(__name__)
 
 
-def diagnose(model: Path) -> dict:
+def diagnose(model: Path) -> Diagnostics:
     from ..infrastructure.vector_index import check_storage
     from .diagnostics import diagnose as run_doctor
 
@@ -31,14 +33,14 @@ def diagnose(model: Path) -> dict:
 
 def set_up(
     model_location: str, import_from: str | None, progress: Progress, connect_agents_to: str | None = None
-) -> dict:
+) -> ModelSetup:
     provisioned = provision(model_location, import_from, progress)
     if connect_agents_to is None:
         return provisioned
-    return {**provisioned, "agents": connect_agents(connect_agents_to, [], progress)["agents"]}
+    return replace(provisioned, agents=connect_agents(connect_agents_to, [], progress).connections)
 
 
-def provision(model_location: str, import_from: str | None = None, progress: Progress = SILENT) -> dict:
+def provision(model_location: str, import_from: str | None = None, progress: Progress = SILENT) -> ModelSetup:
     destination = Path(model_location).expanduser().resolve()
     progress.model_setup_started(destination)
     source = Path(import_from).expanduser().resolve() if import_from else None
@@ -83,7 +85,7 @@ def provision(model_location: str, import_from: str | None = None, progress: Pro
                 progress.stage_started(Stage.CHECKING_INSTALLATION)
                 diagnostics = diagnose(staged)
                 staged.rename(destination)
-            diagnostics["model"] = str(destination)
+            diagnostics = replace(diagnostics, model=str(destination))
             reused = False
     progress.model_setup_finished(reused)
-    return {"model": str(destination), "index_root": str(index_root()), "reused": reused, "diagnostics": diagnostics}
+    return ModelSetup(str(destination), str(index_root()), reused, diagnostics)

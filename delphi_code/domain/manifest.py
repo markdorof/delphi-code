@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
@@ -10,7 +10,15 @@ from .selection import FileSelection
 
 SCHEMA_VERSION = 2
 LEGACY_SCHEMA_VERSION = 1
-REVISION_FIELDS = ("ref", "commit")
+
+
+@dataclass(frozen=True)
+class IndexedRevision:
+    ref: str | None = None
+    commit: str | None = None
+
+    def to_json(self) -> dict:
+        return {name: value for name, value in (("ref", self.ref), ("commit", self.commit)) if value is not None}
 
 
 class ModelIdentity(Protocol):
@@ -72,8 +80,18 @@ class Manifest:
         return self._fields.get("indexed_at")
 
     @property
-    def revision(self) -> dict:
-        return {name: self._source[name] for name in REVISION_FIELDS if name in self._source}
+    def revision(self) -> IndexedRevision:
+        return IndexedRevision(self._source.get("ref"), self._source.get("commit"))
+
+    @property
+    def selection(self) -> FileSelection:
+        return FileSelection(
+            self._fields.get("paths") or [], self._fields.get("languages") or [], self._fields.get("ignores") or []
+        )
+
+    @property
+    def model_directory(self) -> str | None:
+        return self._fields.get("model")
 
     def was_built_with(self, model: ModelIdentity) -> bool:
         return self._fields.get("model_sha256") == model.sha256

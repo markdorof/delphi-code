@@ -1,3 +1,4 @@
+from ...domain.search_hits import CrossProjectSearchHits
 from ...infrastructure.store import Store
 from ...services import searching
 from ...services.searching import SearchRequest
@@ -9,9 +10,9 @@ from .response import ControllerResponse
 
 def search(project: str | None, request: SearchRequest, model: str) -> ControllerResponse:
     found = searching.search(Store(), project, request, model)
-    if project is None:
-        searched_scope = pluralized(len(found["projects"]), "index", "indexes")
+    if isinstance(found, CrossProjectSearchHits):
+        searched_scope = pluralized(len(found.projects), "index", "indexes")
     else:
-        searched_scope = project_display_name(found["key"])
-    view = SearchHitsView(request.query, searched_scope, found["results"], names_project_of_each_hit=project is None)
-    return ControllerResponse(found, [view])
+        searched_scope = project_display_name(found.key)
+    view = SearchHitsView(request.query, searched_scope, found.hits)
+    return ControllerResponse(found.to_json(), [view])

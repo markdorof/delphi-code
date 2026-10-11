@@ -2,6 +2,7 @@ from ..domain.errors import Failure, FailureKind
 from ..domain.keys import match_key
 from ..domain.selection import FileSelection
 from ..domain.tracking_changes import TrackingChanges
+from ..domain.tracking_report import ProjectRemoval, TrackedSource, TrackingReport, UntrackedProject
 from ..infrastructure.project_identity import project_key
 from ..infrastructure.registry import Entry, Registry
 from ..infrastructure.sources import LocalSource, Source, source_from_argument
@@ -19,7 +20,7 @@ def add_sources(
     model_location: str,
     sync_now: bool,
     progress: Progress = SILENT,
-) -> dict:
+) -> TrackingReport:
     added = []
     with registry.edit() as entries:
         keys = [entry.current_key() for entry in entries]
@@ -31,9 +32,10 @@ def add_sources(
                 entries.append(entry)
                 keys.append(entry.current_key())
             added.append(entry)
+    tracked = _tracked_sources(added)
     if not sync_now:
-        return {"registry": str(registry.path), "repos": _summaries(added)}
-    return sync(store, registry, added, model_location, progress)
+        return TrackingReport(str(registry.path), tracked)
+    return TrackingReport(str(registry.path), tracked, sync(store, registry, added, model_location, progress))
 
 
 def apply_tracking_changes(
@@ -45,23 +47,21 @@ def apply_tracking_changes(
     model_location: str,
     sync_now: bool,
     progress: Progress = SILENT,
-) -> dict:
+) -> TrackingReport:
     added = [Entry(key, selection=selection, ref=ref) for key in changes.added]
     with registry.edit() as entries:
         kept = [entry for entry in entries if entry.current_key() not in changes.removed]
         entries[:] = kept + added
-    removed = [{"key": key, "deleted_index": _delete_index(store, key)} for key in changes.removed]
+    untracked = [UntrackedProject(key, _delete_index(store, key)) for key in changes.removed]
+    tracked = _tracked_sources(added)
     if not sync_now:
-        return {"registry": str(registry.path), "repos": _summaries(added), "removed": removed}
+        return TrackingReport(str(registry.path), tracked, untracked=untracked)
     never_indexed = [entry for entry in kept if not _has_ready_index(store, entry)]
-    try:
-        return {**sync(store, registry, never_indexed + added, model_location, progress), "removed": removed}
-    except Failure as failure:
-        failure.data = {**(failure.data or {}), "removed": removed}
-        raise
+    synced = sync(store, registry, never_indexed + added, model_location, progress)
+    return TrackingReport(str(registry.path), tracked, synced, untracked)
 
 
-def remove_project(store: Store, registry: Registry, name: str, keep_index: bool) -> dict:
+def remove_project(store: Store, registry: Registry, name: str, keep_index: bool) -> ProjectRemoval:
     with registry.edit() as entries:
         keys = [entry.current_key() for entry in entries]
         candidates = [
@@ -74,7 +74,7 @@ def remove_project(store: Store, registry: Registry, name: str, keep_index: bool
         untracked = key in keys
         entries[:] = [entry for candidate, entry in zip(keys, entries, strict=True) if candidate != key]
         deleted = None if keep_index else _delete_index(store, key)
-    return {"key": key, "untracked": untracked, "deleted_index": deleted}
+    return ProjectRemoval(key, untracked, deleted)
 
 
 def _entry_for(origin: Source, ref: str | None, selection: FileSelection) -> Entry:
@@ -94,8 +94,8 @@ def _has_ready_index(store: Store, entry: Entry) -> bool:
     return index is not None and index.manifest.ready
 
 
-def _summaries(entries: list[Entry]) -> list[dict]:
-    return [{"source": entry.source, "key": entry.current_key()} for entry in entries]
+def _tracked_sources(entries: list[Entry]) -> list[TrackedSource]:
+    return [TrackedSource(entry.source, entry.current_key()) for entry in entries]
 
 
 def _delete_index(store: Store, key: str) -> str | None:

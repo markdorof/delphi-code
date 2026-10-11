@@ -1,9 +1,10 @@
+from ....domain.diagnostics import Diagnostics, ModelSetup
 from ..text_layout import LabelledFields, TextStyle, home_abbreviated
 from .project_names import project_display_name
 
 
 class DiagnosticsView:
-    def __init__(self, diagnostics: dict):
+    def __init__(self, diagnostics: Diagnostics):
         self._diagnostics = diagnostics
 
     def lines(self, style: TextStyle) -> list[str]:
@@ -14,30 +15,27 @@ class DiagnosticsView:
 
 
 class ModelSetupView:
-    def __init__(self, model_directory: str, index_root: str, reused_existing_model: bool, diagnostics: dict):
-        self._model_directory = model_directory
-        self._index_root = index_root
-        self._reused_existing_model = reused_existing_model
-        self._diagnostics = diagnostics
+    def __init__(self, setup: ModelSetup):
+        self._setup = setup
 
     def lines(self, style: TextStyle) -> list[str]:
-        outcome = "Model already installed" if self._reused_existing_model else "Model installed"
+        setup = self._setup
+        outcome = "Model already installed" if setup.reused else "Model installed"
         fields = LabelledFields(
-            [("Indexes", home_abbreviated(self._index_root)), *diagnostic_fields(self._diagnostics)]
+            [("Indexes", home_abbreviated(setup.index_root)), *diagnostic_fields(setup.diagnostics)]
         )
-        return [f"{style.green('✓')} {outcome} at {home_abbreviated(self._model_directory)}", *fields.lines(style)]
+        return [f"{style.green('✓')} {outcome} at {home_abbreviated(setup.model)}", *fields.lines(style)]
 
 
-def diagnostic_fields(diagnostics: dict) -> list[tuple[str, str | None]]:
-    dependencies = diagnostics.get("dependencies", {})
+def diagnostic_fields(diagnostics: Diagnostics) -> list[tuple[str, str | None]]:
     return [
-        ("Version", diagnostics.get("version")),
-        ("Project", project_display_name(diagnostics["key"]) if diagnostics.get("key") else None),
-        ("Index", home_abbreviated(diagnostics.get("index_directory")) or "none yet"),
-        ("Model", home_abbreviated(diagnostics.get("model"))),
-        ("Embedding", f"{diagnostics['dimensions']} dimensions on {diagnostics['device']}"),
-        ("Storage", diagnostics.get("cocoindex_storage")),
-        ("Network guard", diagnostics.get("network_guard")),
-        ("SQLite", diagnostics.get("sqlite")),
-        ("Packages", ", ".join(f"{name} {version}" for name, version in dependencies.items())),
+        ("Version", diagnostics.version),
+        ("Project", project_display_name(diagnostics.key) if diagnostics.key else None),
+        ("Index", home_abbreviated(diagnostics.index_directory) or "none yet"),
+        ("Model", home_abbreviated(diagnostics.model)),
+        ("Embedding", f"{diagnostics.dimensions} dimensions on {diagnostics.device}"),
+        ("Storage", diagnostics.cocoindex_storage),
+        ("Network guard", diagnostics.network_guard),
+        ("SQLite", diagnostics.sqlite),
+        ("Packages", ", ".join(f"{name} {version}" for name, version in diagnostics.dependencies.items())),
     ]

@@ -5,7 +5,10 @@ from pathlib import Path
 from typing import Any
 
 from ..domain.errors import Failure
+from ..domain.indexing_outcomes import SyncReport
 from ..domain.selection import DEFAULT_MAX_BYTES, FileSelection
+from ..domain.service_result import ServiceResult
+from ..domain.tracking_report import TrackingReport
 from ..infrastructure.registry import Registry
 from ..infrastructure.store import Store
 from ..services import diagnostics, indexing, model_installation, project_catalog, searching, tracking
@@ -108,14 +111,16 @@ def delphi_code_tools(model: str) -> list[McpTool]:
                 "no_sync": _boolean_property("Only update the registry; index later with sync"),
                 **indexing_selection,
             },
-            lambda arguments: tracking.add_sources(
-                Store(),
-                Registry(),
-                arguments["sources"],
-                arguments.get("ref"),
-                _file_selection(arguments),
-                model,
-                not arguments.get("no_sync", False),
+            lambda arguments: _unless_any_project_failed(
+                tracking.add_sources(
+                    Store(),
+                    Registry(),
+                    arguments["sources"],
+                    arguments.get("ref"),
+                    _file_selection(arguments),
+                    model,
+                    not arguments.get("no_sync", False),
+                )
             ),
             USES_THE_NETWORK,
             required=["sources"],
@@ -124,7 +129,7 @@ def delphi_code_tools(model: str) -> list[McpTool]:
             "sync",
             "Index every tracked project; remote repositories are fetched, which needs the network.",
             {},
-            lambda arguments: indexing.sync_tracked(Store(), Registry(), model),
+            lambda arguments: _unless_any_project_failed(indexing.sync_tracked(Store(), Registry(), model)),
             USES_THE_NETWORK,
         ),
         _tool(
@@ -161,13 +166,13 @@ def _tool(
     name: str,
     description: str,
     properties: dict[str, dict],
-    call_service: Callable[[dict[str, Any]], dict[str, Any]],
+    call_service: Callable[[dict[str, Any]], ServiceResult],
     annotations: dict[str, bool],
     required: list[str] | None = None,
 ) -> McpTool:
     def service_data(arguments: dict[str, Any]) -> dict[str, Any]:
         try:
-            return call_service(arguments)
+            return call_service(arguments).to_json()
         except Exception as exc:
             raise McpToolFailure(_failure_text(Failure.from_exception(exc))) from exc
 
@@ -178,6 +183,12 @@ def _tool(
         "additionalProperties": False,
     }
     return McpTool(name, description, input_schema, service_data, annotations)
+
+
+def _unless_any_project_failed[Report: SyncReport | TrackingReport](report: Report) -> Report:
+    if failure := report.failure_if_any_failed():
+        raise failure
+    return report
 
 
 def _failure_text(failure: Failure) -> str:

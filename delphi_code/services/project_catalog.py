@@ -1,6 +1,9 @@
 import shlex
 
 from ..domain.errors import Failure, FailureKind
+from ..domain.index_state import IndexState
+from ..domain.manifest import IndexedRevision
+from ..domain.project_listing import ListedProject, ProjectListing
 from ..infrastructure.registry import Registry
 from ..infrastructure.store import Index, ResolvedProject, Store
 
@@ -24,39 +27,34 @@ def resolve_indexed(store: Store, name: str) -> tuple[str, Index]:
     return key, index
 
 
-def status(store: Store, name: str) -> dict:
+def status(store: Store, name: str) -> IndexState:
     key, index = resolve_indexed(store, name)
     with index.lock(False):
         manifest = index.read_manifest()
-        return {
-            "key": key,
-            "index_directory": str(index.directory),
-            **manifest.to_json(),
-            **(index.counts() if manifest.ready else {}),
-        }
+        return IndexState(key, str(index.directory), manifest, index.counts() if manifest.ready else None)
 
 
-def list_projects(store: Store, registry: Registry, only_indexed: bool = False) -> dict:
+def list_projects(store: Store, registry: Registry, only_indexed: bool = False) -> ProjectListing:
     tracked = {entry.current_key(): entry for entry in registry.entries()}
     stored = {index.key: index for index in store.all()}
     listed_keys = set(stored) if only_indexed else set(tracked) | set(stored)
-    rows = []
+    projects = []
     for key in sorted(listed_keys):
         index, entry = stored.get(key), tracked.get(key)
         manifest = index.manifest if index else None
-        rows.append(
-            {
-                "key": key,
-                "tracked": entry is not None,
-                "source": entry.source if entry else None,
-                "project": optional_path_text(manifest.project) if manifest else None,
-                "index_directory": str(index.directory) if index else None,
-                "ready": manifest.ready if manifest else False,
-                "indexed_at": manifest.indexed_at if manifest else None,
-                **(manifest.revision if manifest else {}),
-            }
+        projects.append(
+            ListedProject(
+                key=key,
+                tracked=entry is not None,
+                source=entry.source if entry else None,
+                project=optional_path_text(manifest.project) if manifest else None,
+                index_directory=str(index.directory) if index else None,
+                ready=manifest.ready if manifest else False,
+                indexed_at=manifest.indexed_at if manifest else None,
+                revision=manifest.revision if manifest else IndexedRevision(),
+            )
         )
-    return {"registry": str(registry.path), "repos": rows}
+    return ProjectListing(str(registry.path), projects)
 
 
 def optional_path_text(path) -> str | None:

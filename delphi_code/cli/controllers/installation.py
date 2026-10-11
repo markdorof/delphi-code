@@ -10,7 +10,7 @@ def doctor(project: str, model: str) -> ControllerResponse:
     from ...services.diagnostics import diagnose
 
     diagnostics = diagnose(model, Store(), project)
-    return ControllerResponse(diagnostics, [DiagnosticsView(diagnostics)])
+    return ControllerResponse(diagnostics.to_json(), [DiagnosticsView(diagnostics)])
 
 
 def setup(
@@ -19,23 +19,21 @@ def setup(
     from ...services.model_installation import set_up
 
     installed = set_up(model, source, progress, connect_agents_to)
-    views: list[TextView] = [
-        ModelSetupView(installed["model"], installed["index_root"], installed["reused"], installed["diagnostics"])
-    ]
-    if "agents" in installed:
-        views.append(AgentConnectionsView(installed["agents"]))
-    return ControllerResponse(installed, views)
+    views: list[TextView] = [ModelSetupView(installed)]
+    if installed.agents is not None:
+        views.append(AgentConnectionsView(installed.agents))
+    return ControllerResponse(installed.to_json(), views)
 
 
 def connect(command: str, agents: list[str], progress: Progress = SILENT) -> ControllerResponse:
     from ...services.agent_connections import connect_agents
 
     connected = connect_agents(command, agents, progress)
-    return ControllerResponse(connected, [AgentConnectionsView(connected["agents"])])
+    return ControllerResponse(connected.to_json(), [AgentConnectionsView(connected.connections)])
 
 
 def disconnect(command: str, agents: list[str]) -> ControllerResponse:
     from ...services.agent_connections import disconnect_agents
 
     disconnected = disconnect_agents(command, agents)
-    return ControllerResponse(disconnected, [AgentConnectionsView(disconnected["agents"])])
+    return ControllerResponse(disconnected.to_json(), [AgentConnectionsView(disconnected.connections)])

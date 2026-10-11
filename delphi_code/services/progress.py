@@ -2,6 +2,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from ..domain.errors import Failure
+from ..domain.indexing_outcomes import IndexingOutcome, ProjectUpToDate
 
 
 class Stage(StrEnum):
@@ -42,7 +43,7 @@ class Progress:
     def files_embedded(self, done: int, total: int):
         pass
 
-    def repository_finished(self, result: dict):
+    def repository_finished(self, result: IndexingOutcome | ProjectUpToDate):
         pass
 
     def repository_failed(self, failure: Failure):

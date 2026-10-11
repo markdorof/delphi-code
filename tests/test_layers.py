@@ -12,7 +12,7 @@ CORE_LAYERS_EACH_MAY_IMPORT = {
     "services": {"domain", "infrastructure", "services"},
 }
 FRONT_ENDS = ("cli", "mcp_server", "http_api")
-PORTS_AND_FOUNDATIONS_FOR_TERMINAL_UI = ("domain.errors", "services.progress")
+PORTS_AND_FOUNDATIONS_FOR_TERMINAL_UI = ("domain.", "services.progress")
 VIEW_BUILDING_BLOCKS_FOR_CONTROLLERS = ("cli.terminal.views", "cli.terminal.text_layout")
 LAYERS_WITHOUT_TERMINAL_ACCESS = (
     "domain",

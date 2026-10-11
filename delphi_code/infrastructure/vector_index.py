@@ -11,6 +11,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from ..domain.errors import Failure, FailureKind
+from ..domain.indexing_outcomes import FileChanges
 from .files import SourceFile
 from .model import LocalModel
 
@@ -35,7 +36,7 @@ class Passage:
 
 async def build_index(
     directory: Path, files: dict[str, SourceFile], model: LocalModel, on_files_done: Callable[[int], None]
-) -> dict:
+) -> FileChanges | None:
     provider = coco.ContextProvider()
     provider.provide(MODEL, model)
     provider.provide(DATABASE, sqlite.connect(directory / "vectors.sqlite", load_vec=True))
@@ -48,7 +49,7 @@ async def build_index(
         ingest_stats = snapshot.stats.by_component.get("ingest")
         if ingest_stats:
             on_files_done(ingest_stats.num_finished)
-    return dict(ingest_stats._asdict()) if ingest_stats else {}
+    return FileChanges(**ingest_stats._asdict()) if ingest_stats else None
 
 
 async def check_storage(directory: Path):

@@ -2,6 +2,7 @@ from typing import Protocol
 
 from ...domain.selection import FileSelection
 from ...domain.tracking_changes import TrackingChanges
+from ...domain.tracking_report import TrackingReport
 from ...infrastructure.registry import Registry
 from ...infrastructure.store import Store
 from ...services import remote_repositories
@@ -36,7 +37,7 @@ def pick_tracking_changes(hosts, tracked_keys, prompts: Prompts, progress: Progr
 
 def add_picked(
     ref: str | None, selection: FileSelection, model: str, sync_now: bool, progress: Progress, prompts: Prompts
-) -> dict:
+) -> TrackingReport:
     prompts.require_terminal()
     hosts = remote_repositories.hosts_with_credentials()
     store, registry = Store(), Registry()

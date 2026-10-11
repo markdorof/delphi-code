@@ -1,7 +1,7 @@
 from collections.abc import Callable
-from dataclasses import asdict, replace
+from dataclasses import replace
 
-from ..domain.agent_connection import AgentConnection, Outcome
+from ..domain.agent_connection import AgentConnection, AgentConnectionsReport, Outcome
 from ..domain.errors import Failure, FailureKind
 from ..infrastructure.agent_configs import AgentConfig, install_skill, remove_skill, supported_agents
 from .progress import SILENT, Progress
@@ -10,13 +10,13 @@ OUTCOMES_WITH_A_WORKING_SERVER = {Outcome.ADDED, Outcome.ALREADY_CONFIGURED}
 OUTCOMES_AFTER_WHICH_THE_SKILL_GOES = {Outcome.REMOVED, Outcome.NOT_CONFIGURED, Outcome.KEPT}
 
 
-def connect_agents(command: str, requested_names: list[str], progress: Progress = SILENT) -> dict:
+def connect_agents(command: str, requested_names: list[str], progress: Progress = SILENT) -> AgentConnectionsReport:
     progress.agents_connection_started()
     connected = _for_each_agent(requested_names, lambda agent: _connect_with_skill(agent, command))
-    return _connections_report(command, connected)
+    return AgentConnectionsReport(command, connected)
 
 
-def disconnect_agents(command: str, requested_names: list[str]) -> dict:
+def disconnect_agents(command: str, requested_names: list[str]) -> AgentConnectionsReport:
     # Codex and OpenCode read the same skills folder, so the skill stays while either keeps its server.
     staying = [agent for agent in supported_agents() if requested_names and agent.name not in requested_names]
     still_read = {
@@ -28,11 +28,7 @@ def disconnect_agents(command: str, requested_names: list[str]) -> dict:
         requested_names,
         lambda agent: _disconnect_with_skill(agent, command, remove_the_skill=agent.skills_directory not in still_read),
     )
-    return _connections_report(command, disconnected)
-
-
-def _connections_report(command: str, connections: list[AgentConnection]) -> dict:
-    return {"command": command, "agents": [asdict(connection) for connection in connections]}
+    return AgentConnectionsReport(command, disconnected)
 
 
 def _connect_with_skill(agent: AgentConfig, command: str) -> AgentConnection:

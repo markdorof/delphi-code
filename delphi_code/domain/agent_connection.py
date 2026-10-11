@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from enum import StrEnum
 
 
@@ -21,3 +21,12 @@ class AgentConnection:
     detail: str | None = None
     skill: str | None = None
     plugin_brings_the_skill: bool = False
+
+
+@dataclass(frozen=True)
+class AgentConnectionsReport:
+    command: str
+    connections: list[AgentConnection]
+
+    def to_json(self) -> dict:
+        return {"command": self.command, "agents": [asdict(connection) for connection in self.connections]}

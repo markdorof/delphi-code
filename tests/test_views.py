@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 import unittest
 
@@ -6,23 +7,30 @@ from delphi_code.cli.terminal.views.indexing import IndexingOutcomesSummaryView,
 from delphi_code.cli.terminal.views.project_table import ProjectTableView
 from delphi_code.cli.terminal.views.search_hits import SearchHitsView
 from delphi_code.cli.terminal.views.tracking import UntrackedProjectView
+from delphi_code.domain.errors import Failure, FailureKind
+from delphi_code.domain.index_state import IndexCounts
+from delphi_code.domain.indexing_outcomes import FileChanges, IndexingOutcome, ProjectUpToDate, SyncedProject
+from delphi_code.domain.manifest import IndexedRevision
+from delphi_code.domain.project_listing import ListedProject
+from delphi_code.domain.search_hits import HitProject, SearchHit
 
 UNCOLORED = TextStyle(colors_enabled=False)
-HIT = {"path": "a.py", "start_line": 1, "end_line": 2, "language": "python", "score": 0.4567, "text": "x"}
-INDEXED_REPOSITORY = {
-    "key": "github.com/octo/tools",
-    "project": None,
-    "files": 9,
-    "chunks": 30,
-    "incremental": {"num_adds": 2, "num_unchanged": 7},
-    "index_directory": "/indexes/1",
-}
+HIT = SearchHit(path="a.py", language="python", text="x", start_line=1, end_line=2, distance=1.0, score=0.4567)
+INDEXED_REPOSITORY = IndexingOutcome(
+    project=None,
+    key="github.com/octo/tools",
+    index_directory="/indexes/1",
+    revision=IndexedRevision(),
+    counts=IndexCounts(files=9, chunks=30),
+    skipped=0,
+    changes=FileChanges(num_adds=2, num_unchanged=7),
+)
 
 
 class SearchHits(unittest.TestCase):
     def test_shows_location_score_and_link(self):
-        hit = {**HIT, "url": "https://github.com/octo/tools/blob/abc/a.py#L1-L2"}
-        view = SearchHitsView("parse config", "github.com/octo/tools", [hit], names_project_of_each_hit=False)
+        hit = replace(HIT, url="https://github.com/octo/tools/blob/abc/a.py#L1-L2")
+        view = SearchHitsView("parse config", "github.com/octo/tools", [hit])
         self.assertEqual(
             view.lines(UNCOLORED),
             [
@@ -35,12 +43,12 @@ class SearchHits(unittest.TestCase):
         )
 
     def test_names_the_project_of_each_hit_by_its_directory(self):
-        hit = {**HIT, "key": f"local:{Path.home() / 'src' / 'api'}"}
-        view = SearchHitsView("q", "2 indexes", [hit], names_project_of_each_hit=True)
+        hit = replace(HIT, found_in=HitProject(f"local:{Path.home() / 'src' / 'api'}", None))
+        view = SearchHitsView("q", "2 indexes", [hit])
         self.assertEqual(view.lines(UNCOLORED)[3], "  ~/src/api")
 
     def test_says_when_nothing_matches(self):
-        view = SearchHitsView("q", "github.com/octo/tools", [], names_project_of_each_hit=False)
+        view = SearchHitsView("q", "github.com/octo/tools", [])
         self.assertEqual(view.lines(UNCOLORED), ['No matches for "q" in github.com/octo/tools'])
 
 
@@ -56,9 +64,11 @@ class Indexing(unittest.TestCase):
 
     def test_summary_counts_results_and_lists_failures(self):
         outcomes = [
-            {"source": "github.com/octo/tools", "ok": True, **INDEXED_REPOSITORY},
-            {"source": "github.com/octo/docs", "ok": True, "unchanged": True, "key": "github.com/octo/docs"},
-            {"source": "github.com/octo/gone", "ok": False, "error": {"code": "x", "message": "not found"}},
+            SyncedProject("github.com/octo/tools", INDEXED_REPOSITORY),
+            SyncedProject(
+                "github.com/octo/docs", ProjectUpToDate("github.com/octo/docs", "/indexes/2", IndexedRevision())
+            ),
+            SyncedProject("github.com/octo/gone", Failure("x", "not found", FailureKind.REMOTE_FAILED)),
         ]
         self.assertEqual(
             IndexingOutcomesSummaryView(outcomes, lists_each_outcome=True).lines(UNCOLORED)[1:],
@@ -78,15 +88,19 @@ class Indexing(unittest.TestCase):
 class ProjectTable(unittest.TestCase):
     def test_marks_tracked_projects_and_shortens_revisions(self):
         projects = [
-            {"key": "github.com/octo/tools", "tracked": True, "ready": False, "index_directory": None},
-            {
-                "key": "bitbucket.org/acme/api",
-                "tracked": False,
-                "ready": True,
-                "index_directory": "/indexes/1",
-                "ref": "main",
-                "commit": "7bdef4528b026ba144721106ca1bba926bec1669",
-            },
+            ListedProject(
+                "github.com/octo/tools", True, "github.com/octo/tools", None, None, False, None, IndexedRevision()
+            ),
+            ListedProject(
+                "bitbucket.org/acme/api",
+                False,
+                None,
+                None,
+                "/indexes/1",
+                True,
+                None,
+                IndexedRevision("main", "7bdef4528b026ba144721106ca1bba926bec1669"),
+            ),
         ]
         self.assertEqual(
             ProjectTableView(projects).lines(UNCOLORED),
