@@ -17,8 +17,7 @@ def index(project: str, selection: FileSelection, model: str, progress: Progress
 
 
 def sync(model: str, progress: Progress) -> ControllerResponse:
-    registry = Registry()
-    synced = indexing.sync(Store(), registry, registry.entries(), model, progress)
+    synced = indexing.sync_tracked(Store(), Registry(), model, progress)
     if not synced["repos"]:
         return ControllerResponse(synced, [Message("No projects are tracked.", TRACK_A_PROJECT_HINT)])
     return ControllerResponse(synced, [_indexing_outcomes_view(synced["repos"], progress)])

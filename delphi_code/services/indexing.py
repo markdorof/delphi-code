@@ -80,6 +80,10 @@ def index_checkout(
     }
 
 
+def sync_tracked(store: Store, registry: Registry, model_location: str, progress: Progress = SILENT) -> dict:
+    return sync(store, registry, registry.entries(), model_location, progress)
+
+
 def sync(
     store: Store, registry: Registry, entries: list[Entry], model_location: str, progress: Progress = SILENT
 ) -> dict:

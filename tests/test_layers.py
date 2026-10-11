@@ -58,6 +58,12 @@ class Layers(unittest.TestCase):
                     with self.subTest(module=str(path.relative_to(PACKAGE)), imports=imported):
                         self.assertIn(imported.split(".")[0], allowed_layers)
 
+    def test_the_mcp_server_calls_services_without_the_cli_layers(self):
+        path = PACKAGE / "mcp_server.py"
+        for imported in package_imports(path, ast.parse(path.read_text())):
+            with self.subTest(imports=imported):
+                self.assertIn(imported.split(".")[0], {"domain", "infrastructure", "services"})
+
     def test_ui_knows_only_ports_and_foundations(self):
         for path, tree in modules_of("ui"):
             for imported in package_imports(path, tree):

@@ -4,14 +4,14 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .controllers import indexing, installation, project_catalog, searching
-from .controllers.response import ControllerResponse
 from .domain.errors import Failure
 from .domain.selection import DEFAULT_MAX_BYTES, FileSelection
 from .infrastructure.mcp_stdio_server import McpStdioServer, McpTool, McpToolFailure
+from .infrastructure.registry import Registry
+from .infrastructure.store import Store
+from .services import diagnostics, indexing, model_installation, project_catalog, searching, tracking
 from .services.progress import SILENT
 from .services.searching import MAX_SEARCH_LIMIT, SearchRequest
-from .ui.prompts import TerminalPrompts
 
 SERVER_INSTRUCTIONS = (
     "Offline semantic code search over locally indexed projects. When you look for code by what it does and "
@@ -67,7 +67,7 @@ def delphi_code_tools(model: str) -> list[McpTool]:
                     "Maximum number of results; default 10", minimum=1, maximum=MAX_SEARCH_LIMIT
                 ),
             },
-            lambda arguments: searching.search(arguments.get("project"), _search_request(arguments), model),
+            lambda arguments: searching.search(Store(), arguments.get("project"), _search_request(arguments), model),
             READ_ONLY,
             required=["query"],
         ),
@@ -76,8 +76,8 @@ def delphi_code_tools(model: str) -> list[McpTool]:
             "Build or incrementally update a local project's index. Updates after edits are fast; the first index "
             "of a large project can take minutes.",
             {"project": project, **indexing_selection},
-            lambda arguments: indexing.index(
-                _project_or_working_directory(arguments), _file_selection(arguments), model, SILENT
+            lambda arguments: indexing.index_local_project(
+                Store(), _project_or_working_directory(arguments), _file_selection(arguments), model
             ),
             UPDATES_LOCAL_INDEXES,
         ),
@@ -85,14 +85,14 @@ def delphi_code_tools(model: str) -> list[McpTool]:
             "status",
             "Report whether a project is indexed, and when and at which commit.",
             {"project": project},
-            lambda arguments: project_catalog.status(_project_or_working_directory(arguments)),
+            lambda arguments: project_catalog.status(Store(), _project_or_working_directory(arguments)),
             READ_ONLY,
         ),
         _tool(
             "doctor",
             "Check the model, SQLite extensions and storage with a real embedding.",
             {"project": project},
-            lambda arguments: installation.doctor(_project_or_working_directory(arguments), model),
+            lambda arguments: diagnostics.diagnose(model, Store(), _project_or_working_directory(arguments)),
             READ_ONLY,
         ),
         _tool(
@@ -108,14 +108,14 @@ def delphi_code_tools(model: str) -> list[McpTool]:
                 "no_sync": _boolean_property("Only update the registry; index later with sync"),
                 **indexing_selection,
             },
-            lambda arguments: indexing.add(
+            lambda arguments: tracking.add_sources(
+                Store(),
+                Registry(),
                 arguments["sources"],
                 arguments.get("ref"),
                 _file_selection(arguments),
                 model,
                 not arguments.get("no_sync", False),
-                SILENT,
-                TerminalPrompts(),
             ),
             USES_THE_NETWORK,
             required=["sources"],
@@ -124,14 +124,14 @@ def delphi_code_tools(model: str) -> list[McpTool]:
             "sync",
             "Index every tracked project; remote repositories are fetched, which needs the network.",
             {},
-            lambda arguments: indexing.sync(model, SILENT),
+            lambda arguments: indexing.sync_tracked(Store(), Registry(), model),
             USES_THE_NETWORK,
         ),
         _tool(
             "list",
             "List tracked projects and stored indexes.",
             {"indexed": _boolean_property("Only list projects that have an index")},
-            lambda arguments: project_catalog.list_tracked(arguments.get("indexed", False)),
+            lambda arguments: project_catalog.list_projects(Store(), Registry(), arguments.get("indexed", False)),
             READ_ONLY,
         ),
         _tool(
@@ -141,7 +141,9 @@ def delphi_code_tools(model: str) -> list[McpTool]:
                 "name": _string_property("Project path, key, or indexed name"),
                 "keep_index": _boolean_property("Only untrack the project and keep its index"),
             },
-            lambda arguments: project_catalog.remove(arguments["name"], arguments.get("keep_index", False)),
+            lambda arguments: tracking.remove_project(
+                Store(), Registry(), arguments["name"], arguments.get("keep_index", False)
+            ),
             DELETES_AN_INDEX,
             required=["name"],
         ),
@@ -149,7 +151,7 @@ def delphi_code_tools(model: str) -> list[McpTool]:
             "setup",
             "Download the pinned embedding model, or import it with from, and check the installation.",
             {"from": _string_property("Prepared model directory to import without network access")},
-            lambda arguments: installation.setup(model, arguments.get("from"), SILENT),
+            lambda arguments: model_installation.set_up(model, arguments.get("from"), SILENT),
             USES_THE_NETWORK,
         ),
     ]
@@ -159,13 +161,13 @@ def _tool(
     name: str,
     description: str,
     properties: dict[str, dict],
-    call_controller: Callable[[dict[str, Any]], ControllerResponse],
+    call_service: Callable[[dict[str, Any]], dict[str, Any]],
     annotations: dict[str, bool],
     required: list[str] | None = None,
 ) -> McpTool:
-    def controller_data(arguments: dict[str, Any]) -> dict[str, Any]:
+    def service_data(arguments: dict[str, Any]) -> dict[str, Any]:
         try:
-            return call_controller(arguments).data
+            return call_service(arguments)
         except Exception as exc:
             raise McpToolFailure(_failure_text(Failure.from_exception(exc))) from exc
 
@@ -175,7 +177,7 @@ def _tool(
         "required": required or [],
         "additionalProperties": False,
     }
-    return McpTool(name, description, input_schema, controller_data, annotations)
+    return McpTool(name, description, input_schema, service_data, annotations)
 
 
 def _failure_text(failure: Failure) -> str:

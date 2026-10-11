@@ -8,11 +8,10 @@ from .response import ControllerResponse
 
 
 def search(project: str | None, request: SearchRequest, model: str) -> ControllerResponse:
+    found = searching.search(Store(), project, request, model)
     if project is None:
-        found = searching.search_everywhere(Store(), request, model)
         searched_scope = pluralized(len(found["projects"]), "index", "indexes")
     else:
-        found = searching.search_project(Store(), project, request, model)
         searched_scope = project_display_name(found["key"])
     view = SearchHitsView(request.query, searched_scope, found["results"], names_project_of_each_hit=project is None)
     return ControllerResponse(found, [view])

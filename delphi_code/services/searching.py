@@ -19,6 +19,12 @@ class SearchRequest:
         self.limit = limit
 
 
+def search(store: Store, project: str | None, request: SearchRequest, model_location: str) -> dict:
+    if project is None:
+        return search_everywhere(store, request, model_location)
+    return search_project(store, project, request, model_location)
+
+
 @without_network()
 def search_project(store: Store, name: str, request: SearchRequest, model_location: str) -> dict:
     key, index = resolve_indexed(store, name)
