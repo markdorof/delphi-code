@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 
+from fakes import application
 from prompt_toolkit.input import create_pipe_input
 from prompt_toolkit.output import DummyOutput
 
@@ -65,7 +66,7 @@ OCTO = [Repository("github.com", "octo", "tools", "", False)]
 
 def pick(hosts, tracked_keys, terminal=None):
     prompts = TerminalPrompts({} if terminal is None else terminal)
-    return repository_picking.pick_tracking_changes(hosts, tracked_keys, prompts, SILENT)
+    return repository_picking.pick_tracking_changes(application(), hosts, tracked_keys, prompts, SILENT)
 
 
 def pick_from(owners, tracked_keys, repositories=ACME, terminal=None):
@@ -176,7 +177,7 @@ class Picking(unittest.TestCase):
             )
 
     def add_picked(self, prompts):
-        return indexing_controller.add([], None, None, "", True, SILENT, prompts).data
+        return indexing_controller.add(application(""), [], None, None, True, SILENT, prompts).data
 
     def test_needs_a_terminal_before_asking_for_credentials(self):
         with (
@@ -202,7 +203,7 @@ class Picking(unittest.TestCase):
         prompts = MagicMock(spec=TerminalPrompts)
         prompts.type_owner.side_effect = lambda host: progress.mock_calls.append("type_owner") or "acme"
         prompts.choose_repositories.return_value = None
-        repository_picking.pick_tracking_changes([FakeHost(forbidden, ACME)], set(), prompts, progress)
+        repository_picking.pick_tracking_changes(application(), [FakeHost(forbidden, ACME)], set(), prompts, progress)
         self.assertEqual(
             [str(event) for event in progress.mock_calls],
             [

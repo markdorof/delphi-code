@@ -8,6 +8,9 @@ from delphi_code.domain.index_state import IndexCounts
 from delphi_code.domain.indexing_outcomes import IndexingOutcome
 from delphi_code.domain.manifest import IndexedRevision
 from delphi_code.infrastructure.model import LocalModel
+from delphi_code.infrastructure.registry import Registry
+from delphi_code.infrastructure.store import Store
+from delphi_code.services.application import DelphiCode
 
 
 class FakeModel:
@@ -53,3 +56,7 @@ def diagnostics(model: str = "/models/m") -> Diagnostics:
         sqlite="3",
         dependencies={},
     )
+
+
+def application(model_location: str = "/models/m") -> DelphiCode:
+    return DelphiCode(model_location, Store(), Registry())

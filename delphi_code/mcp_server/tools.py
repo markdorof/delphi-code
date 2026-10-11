@@ -6,14 +6,11 @@ from typing import Any
 
 from ..domain.errors import Failure
 from ..domain.indexing_outcomes import SyncReport
+from ..domain.search_request import MAX_SEARCH_LIMIT, SearchRequest
 from ..domain.selection import DEFAULT_MAX_BYTES, FileSelection
 from ..domain.service_result import ServiceResult
 from ..domain.tracking_report import TrackingReport
-from ..infrastructure.registry import Registry
-from ..infrastructure.store import Store
-from ..services import diagnostics, indexing, model_installation, project_catalog, searching, tracking
-from ..services.progress import SILENT
-from ..services.searching import MAX_SEARCH_LIMIT, SearchRequest
+from ..services.application import DelphiCode
 from .stdio_protocol import McpStdioServer, McpTool, McpToolFailure
 
 SERVER_INSTRUCTIONS = (
@@ -32,15 +29,15 @@ USES_THE_NETWORK = {"readOnlyHint": False, "destructiveHint": False, "idempotent
 DELETES_AN_INDEX = {"readOnlyHint": False, "destructiveHint": True, "idempotentHint": True, "openWorldHint": False}
 
 
-def serve(model: str):
-    delphi_code_server(model).serve_stdio()
+def serve():
+    delphi_code_server(DelphiCode.from_environment()).serve_stdio()
 
 
-def delphi_code_server(model: str) -> McpStdioServer:
-    return McpStdioServer("delphi-code", version("delphi-code"), SERVER_INSTRUCTIONS, delphi_code_tools(model))
+def delphi_code_server(app: DelphiCode) -> McpStdioServer:
+    return McpStdioServer("delphi-code", version("delphi-code"), SERVER_INSTRUCTIONS, delphi_code_tools(app))
 
 
-def delphi_code_tools(model: str) -> list[McpTool]:
+def delphi_code_tools(app: DelphiCode) -> list[McpTool]:
     project = _string_property(
         "Absolute path of the project root, or an indexed key (github.com/acme/api) or folder name (api). "
         "Pass it explicitly: the default is the server's working directory, which may not be your project"
@@ -70,7 +67,7 @@ def delphi_code_tools(model: str) -> list[McpTool]:
                     "Maximum number of results; default 10", minimum=1, maximum=MAX_SEARCH_LIMIT
                 ),
             },
-            lambda arguments: searching.search(Store(), arguments.get("project"), _search_request(arguments), model),
+            lambda arguments: app.search(arguments.get("project"), _search_request(arguments)),
             READ_ONLY,
             required=["query"],
         ),
@@ -79,23 +76,21 @@ def delphi_code_tools(model: str) -> list[McpTool]:
             "Build or incrementally update a local project's index. Updates after edits are fast; the first index "
             "of a large project can take minutes.",
             {"project": project, **indexing_selection},
-            lambda arguments: indexing.index_local_project(
-                Store(), _project_or_working_directory(arguments), _file_selection(arguments), model
-            ),
+            lambda arguments: app.index(_project_or_working_directory(arguments), _file_selection(arguments)),
             UPDATES_LOCAL_INDEXES,
         ),
         _tool(
             "status",
             "Report whether a project is indexed, and when and at which commit.",
             {"project": project},
-            lambda arguments: project_catalog.status(Store(), _project_or_working_directory(arguments)),
+            lambda arguments: app.status(_project_or_working_directory(arguments)),
             READ_ONLY,
         ),
         _tool(
             "doctor",
             "Check the model, SQLite extensions and storage with a real embedding.",
             {"project": project},
-            lambda arguments: diagnostics.diagnose(model, Store(), _project_or_working_directory(arguments)),
+            lambda arguments: app.diagnose(_project_or_working_directory(arguments)),
             READ_ONLY,
         ),
         _tool(
@@ -112,13 +107,10 @@ def delphi_code_tools(model: str) -> list[McpTool]:
                 **indexing_selection,
             },
             lambda arguments: _unless_any_project_failed(
-                tracking.add_sources(
-                    Store(),
-                    Registry(),
+                app.add(
                     arguments["sources"],
                     arguments.get("ref"),
                     _file_selection(arguments),
-                    model,
                     not arguments.get("no_sync", False),
                 )
             ),
@@ -129,14 +121,14 @@ def delphi_code_tools(model: str) -> list[McpTool]:
             "sync",
             "Index every tracked project; remote repositories are fetched, which needs the network.",
             {},
-            lambda arguments: _unless_any_project_failed(indexing.sync_tracked(Store(), Registry(), model)),
+            lambda arguments: _unless_any_project_failed(app.sync()),
             USES_THE_NETWORK,
         ),
         _tool(
             "list",
             "List tracked projects and stored indexes.",
             {"indexed": _boolean_property("Only list projects that have an index")},
-            lambda arguments: project_catalog.list_projects(Store(), Registry(), arguments.get("indexed", False)),
+            lambda arguments: app.list_projects(arguments.get("indexed", False)),
             READ_ONLY,
         ),
         _tool(
@@ -146,9 +138,7 @@ def delphi_code_tools(model: str) -> list[McpTool]:
                 "name": _string_property("Project path, key, or indexed name"),
                 "keep_index": _boolean_property("Only untrack the project and keep its index"),
             },
-            lambda arguments: tracking.remove_project(
-                Store(), Registry(), arguments["name"], arguments.get("keep_index", False)
-            ),
+            lambda arguments: app.remove(arguments["name"], arguments.get("keep_index", False)),
             DELETES_AN_INDEX,
             required=["name"],
         ),
@@ -156,7 +146,7 @@ def delphi_code_tools(model: str) -> list[McpTool]:
             "setup",
             "Download the pinned embedding model, or import it with from, and check the installation.",
             {"from": _string_property("Prepared model directory to import without network access")},
-            lambda arguments: model_installation.set_up(model, arguments.get("from"), SILENT),
+            lambda arguments: app.set_up(arguments.get("from")),
             USES_THE_NETWORK,
         ),
     ]

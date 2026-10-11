@@ -8,7 +8,7 @@ import tomllib
 import unittest
 from unittest.mock import patch
 
-from fakes import diagnostics
+from fakes import application, diagnostics
 
 from delphi_code.cli.controllers.installation import connect, disconnect, setup
 from delphi_code.cli.terminal.text_layout import TextStyle
@@ -73,7 +73,8 @@ class ConnectAgents(unittest.TestCase):
 
     def outcomes(self, agents=(), change=connect):
         return {
-            connection["agent"]: connection["outcome"] for connection in change(COMMAND, list(agents)).data["agents"]
+            connection["agent"]: connection["outcome"]
+            for connection in change(application(), COMMAND, list(agents)).data["agents"]
         }
 
     def install_fake_claude(self):
@@ -89,7 +90,7 @@ class ConnectAgents(unittest.TestCase):
         executable.chmod(0o755)
 
     def test_finds_no_agents_in_an_empty_home(self):
-        response = connect(COMMAND, [])
+        response = connect(application(), COMMAND, [])
         self.assertEqual(response.data["agents"], [])
         self.assertEqual(response.views[0].lines(UNCOLORED)[0], "No supported agents found.")
 
@@ -164,7 +165,7 @@ class ConnectAgents(unittest.TestCase):
     def test_leaves_a_standalone_claude_code_server_alone_instead_of_adding_a_duplicate(self):
         self.install_fake_claude()
         (self.home / "claude-standalone-server").touch()
-        (connection,) = connect(COMMAND, []).data["agents"]
+        (connection,) = connect(application(), COMMAND, []).data["agents"]
         self.assertEqual(connection["outcome"], "already_configured")
         self.assertIn("claude mcp remove delphi-code", connection["detail"])
         self.assertEqual(self.outcomes(change=disconnect), {"claude-code": "kept"})
@@ -196,7 +197,7 @@ class ConnectAgents(unittest.TestCase):
 
     def test_installs_the_codex_plugin_once_and_disconnect_removes_it(self):
         self.install_fake_codex()
-        (connection,) = connect(COMMAND, []).data["agents"]
+        (connection,) = connect(application(), COMMAND, []).data["agents"]
         self.assertEqual((connection["outcome"], connection["skill"]), ("added", None))
         self.assertEqual(self.outcomes(), {"codex": "already_configured"})
         self.assertNotIn("mcp_servers", tomllib.loads((self.home / ".codex/config.toml").read_text()))
@@ -215,7 +216,7 @@ class ConnectAgents(unittest.TestCase):
     def test_falls_back_to_a_codex_server_when_codex_cannot_add_plugins(self):
         self.install_fake_codex()
         (self.home / "codex-without-plugin-add").touch()
-        (connection,) = connect(COMMAND, []).data["agents"]
+        (connection,) = connect(application(), COMMAND, []).data["agents"]
         self.assertEqual(connection["outcome"], "added")
         self.assertIn("unrecognized subcommand", connection["detail"])
         self.assertIn("delphi-code", tomllib.loads((self.home / ".codex/config.toml").read_text())["mcp_servers"])
@@ -224,7 +225,7 @@ class ConnectAgents(unittest.TestCase):
     def test_keeps_an_existing_codex_server_instead_of_adding_the_plugin(self):
         self.install_fake_codex()
         (self.home / ".codex/config.toml").write_text('[mcp_servers.delphi-code]\ncommand = "mine"\n')
-        (connection,) = connect(COMMAND, []).data["agents"]
+        (connection,) = connect(application(), COMMAND, []).data["agents"]
         self.assertEqual(connection["outcome"], "already_configured")
         self.assertIn("delphi-code disconnect codex", connection["detail"])
         self.assertFalse(self.codex_log.exists())
@@ -244,7 +245,7 @@ class ConnectAgents(unittest.TestCase):
         stale = self.home / ".cursor/skills/delphi-code/SKILL.md"
         stale.parent.mkdir(parents=True)
         stale.write_text("an older skill")
-        connections = connect(COMMAND, []).data["agents"]
+        connections = connect(application(), COMMAND, []).data["agents"]
         skills = {
             "codex": self.home / ".agents/skills/delphi-code",
             "cursor": self.home / ".cursor/skills/delphi-code",
@@ -253,9 +254,12 @@ class ConnectAgents(unittest.TestCase):
         self.assertEqual({c["agent"]: c["skill"] for c in connections}, {a: str(d) for a, d in skills.items()})
         for directory in skills.values():
             self.assertEqual((directory / "SKILL.md").read_text(), PLUGIN_SKILL.read_text())
-        self.assertIn("skill in ~/.agents/skills/delphi-code", connect(COMMAND, ["codex"]).views[0].lines(UNCOLORED)[0])
+        self.assertIn(
+            "skill in ~/.agents/skills/delphi-code",
+            connect(application(), COMMAND, ["codex"]).views[0].lines(UNCOLORED)[0],
+        )
 
-        disconnected = disconnect(COMMAND, []).data["agents"]
+        disconnected = disconnect(application(), COMMAND, []).data["agents"]
         self.assertEqual({c["agent"]: c["skill"] for c in disconnected}, {a: str(d) for a, d in skills.items()})
         self.assertFalse(any(directory.exists() for directory in skills.values()))
         self.assertTrue((self.home / ".cursor/skills").is_dir())
@@ -281,31 +285,31 @@ class ConnectAgents(unittest.TestCase):
         shared_skill = self.home / ".agents/skills/delphi-code/SKILL.md"
         self.outcomes()
         self.assertTrue(shared_skill.exists())
-        (codex,) = disconnect(COMMAND, ["codex"]).data["agents"]
+        (codex,) = disconnect(application(), COMMAND, ["codex"]).data["agents"]
         self.assertEqual((codex["outcome"], codex["skill"]), ("removed", None))
         self.assertTrue(shared_skill.exists())
-        disconnect(COMMAND, ["opencode"])
+        disconnect(application(), COMMAND, ["opencode"])
         self.assertFalse(shared_skill.exists())
 
     def test_agents_without_a_skills_folder_get_only_the_server(self):
         (self.home / "Library/Application Support/Code/User").mkdir(parents=True)
         (self.home / ".config/Code/User").mkdir(parents=True)
-        (connection,) = connect(COMMAND, ["vscode"]).data["agents"]
+        (connection,) = connect(application(), COMMAND, ["vscode"]).data["agents"]
         self.assertEqual((connection["outcome"], connection["skill"]), ("added", None))
 
     def test_setup_connects_agents_unless_asked_not_to(self):
         (self.home / ".cursor").mkdir()
         with patch("delphi_code.services.model_installation.provision", return_value=PROVISIONED):
-            skipped = setup("/models/m", None, SILENT, connect_agents_to=None)
+            skipped = setup(application(), None, SILENT, connect_agents_to=None)
             self.assertNotIn("agents", skipped.data)
             self.assertFalse((self.home / ".cursor/mcp.json").exists())
-            connected = setup("/models/m", None, SILENT, connect_agents_to=COMMAND)
+            connected = setup(application(), None, SILENT, connect_agents_to=COMMAND)
         self.assertEqual([agent["outcome"] for agent in connected.data["agents"]], ["added"])
         self.assertEqual(len(connected.views), 2)
 
     def test_the_setup_mcp_tool_never_edits_agent_configs(self):
         (self.home / ".cursor").mkdir()
-        (setup_tool,) = [tool for tool in delphi_code_tools("/models/m") if tool.name == "setup"]
+        (setup_tool,) = [tool for tool in delphi_code_tools(application()) if tool.name == "setup"]
         with patch("delphi_code.services.model_installation.provision", return_value=PROVISIONED):
             self.assertNotIn("agents", setup_tool.run({}))
         self.assertFalse((self.home / ".cursor/mcp.json").exists())
@@ -313,7 +317,7 @@ class ConnectAgents(unittest.TestCase):
     def test_named_agents_that_are_missing_are_reported_and_unknown_names_fail(self):
         self.assertEqual(self.outcomes(["cursor"]), {"cursor": "not_found"})
         with self.assertRaises(Failure) as raised:
-            connect(COMMAND, ["emacs"])
+            connect(application(), COMMAND, ["emacs"])
         self.assertEqual(raised.exception.code, "usage")
 
 

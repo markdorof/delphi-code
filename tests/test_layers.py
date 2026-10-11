@@ -12,6 +12,7 @@ CORE_LAYERS_EACH_MAY_IMPORT = {
     "services": {"domain", "infrastructure", "services"},
 }
 FRONT_ENDS = ("cli", "mcp_server", "http_api")
+CORE_SEEN_BY_FRONT_ENDS = ("domain.", "services.application.", "services.progress.", "infrastructure.log_file.")
 PORTS_AND_FOUNDATIONS_FOR_TERMINAL_UI = ("domain.", "services.progress")
 VIEW_BUILDING_BLOCKS_FOR_CONTROLLERS = ("cli.terminal.views", "cli.terminal.text_layout")
 LAYERS_WITHOUT_TERMINAL_ACCESS = (
@@ -68,14 +69,17 @@ class Layers(unittest.TestCase):
                     with self.subTest(module=str(path.relative_to(PACKAGE)), imports=imported):
                         self.assertIn(imported.split(".")[0], allowed_layers)
 
-    def test_front_ends_use_the_core_and_only_start_each_other(self):
+    def test_front_ends_reach_the_core_only_through_the_application(self):
         for front_end in FRONT_ENDS:
-            allowed_layers = {*CORE_LAYERS_EACH_MAY_IMPORT, front_end}
             started_servers = {f"{other}.serve" for other in FRONT_ENDS if other != front_end}
             for path, tree in modules_of(front_end):
                 for imported in package_imports(path, tree):
                     with self.subTest(module=str(path.relative_to(PACKAGE)), imports=imported):
-                        self.assertTrue(imported.split(".")[0] in allowed_layers or imported in started_servers)
+                        self.assertTrue(
+                            imported.startswith((f"{front_end}.", *CORE_SEEN_BY_FRONT_ENDS))
+                            or imported in started_servers,
+                            imported,
+                        )
 
     def test_other_front_ends_load_only_when_their_server_starts(self):
         for front_end in FRONT_ENDS:

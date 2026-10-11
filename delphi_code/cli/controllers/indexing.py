@@ -1,9 +1,7 @@
 from ...domain.indexing_outcomes import SyncedProject
 from ...domain.selection import FileSelection
 from ...domain.tracking_report import TrackingReport
-from ...infrastructure.registry import Registry
-from ...infrastructure.store import Store
-from ...services import indexing, tracking
+from ...services.application import DelphiCode
 from ...services.progress import Progress
 from ..terminal.text_layout import Message, TextView
 from ..terminal.views.indexing import IndexingOutcomesSummaryView, IndexingOutcomeView
@@ -13,14 +11,14 @@ from .repository_picking import Prompts
 from .response import ControllerResponse
 
 
-def index(project: str, selection: FileSelection, model: str, progress: Progress) -> ControllerResponse:
-    outcome = indexing.index_local_project(Store(), project, selection, model, progress)
+def index(app: DelphiCode, project: str, selection: FileSelection, progress: Progress) -> ControllerResponse:
+    outcome = app.index(project, selection, progress)
     view = IndexingOutcomeView(outcome, shows_headline=not progress.showed_outcome_lines)
     return ControllerResponse(outcome.to_json(), [view])
 
 
-def sync(model: str, progress: Progress) -> ControllerResponse:
-    synced = indexing.sync_tracked(Store(), Registry(), model, progress)
+def sync(app: DelphiCode, progress: Progress) -> ControllerResponse:
+    synced = app.sync(progress)
     if failure := synced.failure_if_any_failed():
         raise failure
     if not synced.projects:
@@ -29,18 +27,18 @@ def sync(model: str, progress: Progress) -> ControllerResponse:
 
 
 def add(
+    app: DelphiCode,
     sources: list[str],
     ref: str | None,
     selection: FileSelection,
-    model: str,
     sync_now: bool,
     progress: Progress,
     prompts: Prompts,
 ) -> ControllerResponse:
     if sources:
-        added = tracking.add_sources(Store(), Registry(), sources, ref, selection, model, sync_now, progress)
+        added = app.add(sources, ref, selection, sync_now, progress)
     else:
-        added = repository_picking.add_picked(ref, selection, model, sync_now, progress, prompts)
+        added = repository_picking.add_picked(app, ref, selection, sync_now, progress, prompts)
     if failure := added.failure_if_any_failed():
         raise failure
     return ControllerResponse(added.to_json(), _tracking_change_views(added, progress))

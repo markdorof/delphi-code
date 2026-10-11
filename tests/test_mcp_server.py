@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from fakes import use_fake_model
+from fakes import application, use_fake_model
 
 from delphi_code.mcp_server.tools import delphi_code_server
 
@@ -38,13 +38,13 @@ class McpServerTools(unittest.TestCase):
             for number, (name, arguments) in enumerate(calls)
         ]
         outgoing = io.StringIO()
-        delphi_code_server(str(self.root / "model")).answer_messages(
+        delphi_code_server(application(str(self.root / "model"))).answer_messages(
             io.StringIO("".join(json.dumps(message) + "\n" for message in messages)), outgoing
         )
         return [json.loads(line)["result"] for line in outgoing.getvalue().splitlines()]
 
     def test_offers_a_tool_for_every_cli_command(self):
-        self.assertEqual(sorted(delphi_code_server("model").tools_by_name), CLI_COMMANDS)
+        self.assertEqual(sorted(delphi_code_server(application("model")).tools_by_name), CLI_COMMANDS)
 
     def test_indexes_then_searches_in_one_session(self):
         project = str(self.project)

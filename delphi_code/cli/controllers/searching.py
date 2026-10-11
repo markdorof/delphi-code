@@ -1,15 +1,14 @@
 from ...domain.search_hits import CrossProjectSearchHits
-from ...infrastructure.store import Store
-from ...services import searching
-from ...services.searching import SearchRequest
+from ...domain.search_request import SearchRequest
+from ...services.application import DelphiCode
 from ..terminal.text_layout import pluralized
 from ..terminal.views.project_names import project_display_name
 from ..terminal.views.search_hits import SearchHitsView
 from .response import ControllerResponse
 
 
-def search(project: str | None, request: SearchRequest, model: str) -> ControllerResponse:
-    found = searching.search(Store(), project, request, model)
+def search(app: DelphiCode, project: str | None, request: SearchRequest) -> ControllerResponse:
+    found = app.search(project, request)
     if isinstance(found, CrossProjectSearchHits):
         searched_scope = pluralized(len(found.projects), "index", "indexes")
     else:

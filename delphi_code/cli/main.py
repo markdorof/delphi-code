@@ -8,11 +8,11 @@ import sys
 import time
 
 from ..domain.errors import Failure, FailureKind
+from ..domain.search_request import MAX_SEARCH_LIMIT, SearchRequest
 from ..domain.selection import DEFAULT_MAX_BYTES, FileSelection
 from ..infrastructure.log_file import write_logs_to_file
-from ..infrastructure.paths import model_directory
+from ..services.application import DelphiCode
 from ..services.progress import Progress
-from ..services.searching import MAX_SEARCH_LIMIT, SearchRequest
 from .controllers import indexing, installation, project_catalog, searching
 from .controllers.response import ControllerResponse
 from .terminal import output
@@ -95,7 +95,7 @@ def arguments() -> argparse.Namespace:
 def execute(args: argparse.Namespace, progress: TerminalProgress | None = None) -> ControllerResponse:
     progress = progress or TerminalProgress.on_terminal()
     with progress:
-        return COMMANDS[args.command](args, progress)
+        return COMMANDS[args.command](DelphiCode.from_environment(), args, progress)
 
 
 def main():
@@ -106,7 +106,7 @@ def main():
     try:
         args = arguments()
         if args.command == "mcp":
-            _serve_mcp(_configured_model())
+            _serve_mcp()
             return
         command, write_json = args.command, output.json_output_requested(json_flag=args.json)
         logger.info("%s started in %s", command, Path.cwd())
@@ -125,36 +125,32 @@ def main():
     raise SystemExit(output.write_text_success(response.views))
 
 
-COMMANDS: dict[str, Callable[[argparse.Namespace, Progress], ControllerResponse]] = {
-    "index": lambda args, progress: indexing.index(args.project, _selection(args), _configured_model(), progress),
-    "search": lambda args, progress: searching.search(
-        args.project, SearchRequest(args.query, args.path, args.language, args.limit), _configured_model()
+COMMANDS: dict[str, Callable[[DelphiCode, argparse.Namespace, Progress], ControllerResponse]] = {
+    "index": lambda app, args, progress: indexing.index(app, args.project, _selection(args), progress),
+    "search": lambda app, args, progress: searching.search(
+        app, args.project, SearchRequest(args.query, args.path, args.language, args.limit)
     ),
-    "status": lambda args, progress: project_catalog.status(args.project),
-    "doctor": lambda args, progress: installation.doctor(args.project, _configured_model()),
-    "add": lambda args, progress: indexing.add(
-        args.sources, args.ref, _selection(args), _configured_model(), not args.no_sync, progress, TerminalPrompts()
+    "status": lambda app, args, progress: project_catalog.status(app, args.project),
+    "doctor": lambda app, args, progress: installation.doctor(app, args.project),
+    "add": lambda app, args, progress: indexing.add(
+        app, args.sources, args.ref, _selection(args), not args.no_sync, progress, TerminalPrompts()
     ),
-    "sync": lambda args, progress: indexing.sync(_configured_model(), progress),
-    "list": lambda args, progress: project_catalog.list_tracked(args.indexed),
-    "remove": lambda args, progress: project_catalog.remove(args.name, args.keep_index),
-    "setup": lambda args, progress: installation.setup(
-        _configured_model(), args.source, progress, None if args.no_connect else _delphi_code_command()
+    "sync": lambda app, args, progress: indexing.sync(app, progress),
+    "list": lambda app, args, progress: project_catalog.list_tracked(app, args.indexed),
+    "remove": lambda app, args, progress: project_catalog.remove(app, args.name, args.keep_index),
+    "setup": lambda app, args, progress: installation.setup(
+        app, args.source, progress, None if args.no_connect else _delphi_code_command()
     ),
-    "connect": lambda args, progress: installation.connect(_delphi_code_command(), args.agents, progress),
-    "disconnect": lambda args, progress: installation.disconnect(_delphi_code_command(), args.agents),
+    "connect": lambda app, args, progress: installation.connect(app, _delphi_code_command(), args.agents, progress),
+    "disconnect": lambda app, args, progress: installation.disconnect(app, _delphi_code_command(), args.agents),
 }
 
 
-def _serve_mcp(model: str):
+def _serve_mcp():
     logger.info("mcp server started in %s", Path.cwd())
     from ..mcp_server import serve as serve_mcp
 
-    serve_mcp(model)
-
-
-def _configured_model() -> str:
-    return str(model_directory())
+    serve_mcp()
 
 
 def _delphi_code_command() -> str:

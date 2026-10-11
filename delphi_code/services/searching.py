@@ -3,23 +3,12 @@ from dataclasses import replace
 from ..domain.errors import Failure, FailureKind
 from ..domain.manifest import Manifest
 from ..domain.search_hits import CrossProjectSearchHits, HitProject, ProjectSearchHits, SearchHit, SearchHits
+from ..domain.search_request import SearchRequest
 from ..infrastructure.model import LocalModel
 from ..infrastructure.offline import without_network
 from ..infrastructure.store import Index, Store
 from .local_model import open_model
 from .project_catalog import optional_path_text, resolve_indexed
-
-MAX_SEARCH_LIMIT = 1000
-
-
-class SearchRequest:
-    def __init__(self, query: str, paths: list[str], languages: list[str], limit: int):
-        if not query.strip():
-            raise Failure("usage", "Query must be nonempty", FailureKind.INVALID_REQUEST)
-        self.query = query
-        self.paths = paths
-        self.languages = languages
-        self.limit = limit
 
 
 def search(store: Store, project: str | None, request: SearchRequest, model_location: str) -> SearchHits:

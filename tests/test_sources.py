@@ -244,7 +244,7 @@ class RemoteSync(LocalHostWithApiRepository):
         self.run_command("add", str(self.work))
         picker = self.pick(TrackingChanges(["bitbucket.org/acme/api"], []))
         added = self.run_command("add", "--path", "src/*")
-        self.assertEqual(picker.call_args.args[1], {f"local:{self.work}"})
+        self.assertEqual(picker.call_args.args[2], {f"local:{self.work}"})
         self.assertEqual(
             ([repo["key"] for repo in added["repos"]], added["removed"], added["cancelled"]),
             (["bitbucket.org/acme/api"], [], False),
