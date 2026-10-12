@@ -31,8 +31,11 @@ dependencies = [
   "numpy==2.5.3",
   "pathspec==0.12.1",
   "questionary==2.1.1",
+  "fastapi==0.141.1",
   "certifi",
   # Indirect dependencies, bounded because uv tool install ignores uv.lock
+  "pydantic>=2.13,<2.14",
+  "starlette>=1.5,<2",
   "torch>=2.14,<2.15",
   "transformers>=5.17,<6",
   "huggingface-hub>=1.32,<2",
