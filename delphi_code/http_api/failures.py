@@ -17,7 +17,7 @@ HTTP_STATUS_BY_FAILURE_KIND = {
     FailureKind.REMOTE_FAILED: 502,
     FailureKind.OPERATION_FAILED: 500,
 }
-ERROR_CODE_BY_HTTP_STATUS = {401: "unauthorized", 404: "not_found", 405: "method_not_allowed"}
+ERROR_CODE_BY_HTTP_STATUS = {401: "unauthorized", 403: "forbidden_origin", 404: "not_found", 405: "method_not_allowed"}
 
 
 def report_failures_as_json(api: FastAPI):

@@ -4,6 +4,7 @@ from functools import cached_property
 import hashlib
 import json
 from pathlib import Path
+import threading
 from typing import TYPE_CHECKING, NamedTuple
 
 from ..domain.errors import Failure, FailureKind
@@ -32,6 +33,8 @@ class LocalModel:
     def __init__(self, directory: Path, sha256: str):
         self.directory = directory
         self.sha256 = sha256
+        # One thread at a time loads and runs the encoder; the HTTP API searches while it indexes.
+        self._encoder_in_use = threading.Lock()
 
     @classmethod
     def inspect(cls, location: str | Path | None) -> LocalModel:
@@ -49,7 +52,8 @@ class LocalModel:
 
     @property
     def dimensions(self) -> int:
-        dimensions = self._encoder.get_embedding_dimension()
+        with self._encoder_in_use:
+            dimensions = self._encoder.get_embedding_dimension()
         if dimensions is None:
             raise _model_failure("model_invalid", f"Model at {self.directory} does not declare its embedding dimension")
         return dimensions
@@ -57,7 +61,10 @@ class LocalModel:
     def embed(self, texts: list[str]) -> NDArray[np.float32]:
         import numpy as np
 
-        vectors = self._encoder.encode(texts, normalize_embeddings=True, show_progress_bar=False, convert_to_numpy=True)
+        with self._encoder_in_use:
+            vectors = self._encoder.encode(
+                texts, normalize_embeddings=True, show_progress_bar=False, convert_to_numpy=True
+            )
         vectors = np.asarray(vectors, dtype=np.float32)
         if not np.isfinite(vectors).all() or (np.linalg.norm(vectors, axis=-1) == 0).any():
             raise _model_failure("embedding_invalid", "Model produced invalid or zero embeddings")

@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -89,3 +89,101 @@ class DiagnosticsResponse(ResponseModel):
     network_guard: str
     sqlite: str
     dependencies: dict[str, str]
+
+
+class ErrorResponse(ResponseModel):
+    code: str
+    message: str
+
+
+class FileChangesResponse(ResponseModel):
+    num_execution_starts: int = 0
+    num_unchanged: int = 0
+    num_adds: int = 0
+    num_deletes: int = 0
+    num_reprocesses: int = 0
+    num_errors: int = 0
+
+
+class IndexingOutcomeResponse(ResponseModel):
+    project: str | None
+    key: str
+    index_directory: str
+    ref: str | None = None
+    commit: str | None = None
+    files: int
+    chunks: int
+    skipped: int
+    incremental: FileChangesResponse
+
+
+class ProjectIndexedResponse(IndexingOutcomeResponse):
+    source: str
+    ok: Literal[True]
+    unchanged: Literal[False]
+
+
+class ProjectUpToDateResponse(ResponseModel):
+    source: str
+    ok: Literal[True]
+    unchanged: Literal[True]
+    project: None
+    key: str
+    index_directory: str
+    ref: str | None = None
+    commit: str | None = None
+
+
+class ProjectSyncFailedResponse(ResponseModel):
+    source: str
+    ok: Literal[False]
+    error: ErrorResponse
+
+
+SyncedProjectResponse = ProjectIndexedResponse | ProjectUpToDateResponse | ProjectSyncFailedResponse
+
+
+class SyncReportResponse(ResponseModel):
+    registry: str
+    repos: list[SyncedProjectResponse]
+
+
+class TrackedSourceResponse(ResponseModel):
+    source: str
+    key: str
+
+
+class UntrackedProjectResponse(ResponseModel):
+    key: str
+    deleted_index: str | None
+
+
+class TrackingReportResponse(ResponseModel):
+    registry: str
+    repos: list[TrackedSourceResponse | SyncedProjectResponse]
+    removed: list[UntrackedProjectResponse] | None = None
+    cancelled: bool | None = None
+
+
+class ProjectRemovalResponse(ResponseModel):
+    key: str
+    untracked: bool
+    deleted_index: str | None
+
+
+class AgentConnectionResponse(ResponseModel):
+    agent: str
+    title: str
+    outcome: str
+    config: str | None
+    detail: str | None
+    skill: str | None
+    plugin_brings_the_skill: bool
+
+
+class ModelSetupResponse(ResponseModel):
+    model: str
+    index_root: str
+    reused: bool
+    diagnostics: DiagnosticsResponse
+    agents: list[AgentConnectionResponse] | None = None

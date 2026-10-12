@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from delphi_code.cli.main import arguments, execute
 from delphi_code.domain.errors import Failure
 from delphi_code.http_api.app import create_app
+from delphi_code.http_api.progress_stream import NDJSON
 from delphi_code.http_api.settings import ApiSettings
 from delphi_code.mcp_server.tools import delphi_code_server
 
@@ -67,15 +68,18 @@ class SameDataFromEveryFrontEnd(unittest.TestCase):
         self.assertFalse(result["isError"], result["content"])
         return result["structuredContent"]
 
-    def http_response(self, path: str, parameters: dict):
+    def http_response(self, method: str, path: str, arguments: dict):
         client = TestClient(
             create_app(application(str(self.root / "model")), ApiSettings(TOKEN)), base_url="http://127.0.0.1"
         )
-        return client.get(path, params=parameters, headers={"Authorization": f"Bearer {TOKEN}"})
+        sent = {"json": arguments} if method == "POST" else {"params": arguments}
+        return client.request(method, path, headers={"Authorization": f"Bearer {TOKEN}"}, **sent)
 
-    def http_data(self, path: str, parameters: dict) -> dict:
-        response = self.http_response(path, parameters)
+    def http_data(self, method: str, path: str, arguments: dict) -> dict:
+        response = self.http_response(method, path, arguments)
         self.assertEqual(response.status_code, 200, response.text)
+        if response.headers["content-type"].startswith(NDJSON):
+            return json.loads(response.text.splitlines()[-1])["done"]
         return response.json()
 
     def test_successful_commands_return_the_same_data(self):
@@ -85,26 +89,39 @@ class SameDataFromEveryFrontEnd(unittest.TestCase):
             (
                 ["search", "-p", project, query],
                 ("search", {"project": project, "query": query}),
-                ("/api/search", {"project": project, "query": query}),
+                ("GET", "/api/search", {"project": project, "query": query}),
             ),
-            (["search", query], ("search", {"query": query}), ("/api/search", {"query": query})),
+            (["search", query], ("search", {"query": query}), ("GET", "/api/search", {"query": query})),
             (
                 ["status", "-p", project],
                 ("status", {"project": project}),
-                ("/api/projects/status", {"project": project}),
+                ("GET", "/api/projects/status", {"project": project}),
             ),
-            (["doctor", "-p", project], ("doctor", {"project": project}), ("/api/doctor", {"project": project})),
-            (["index", "-p", project], ("index", {"project": project}), None),
-            (["add", project, "--no-sync"], ("add", {"sources": [project], "no_sync": True}), None),
-            (["list"], ("list", {}), ("/api/projects", {})),
-            (["list", "--indexed"], ("list", {"indexed": True}), ("/api/projects", {"indexed": "true"})),
+            (
+                ["doctor", "-p", project],
+                ("doctor", {"project": project}),
+                ("GET", "/api/doctor", {"project": project}),
+            ),
+            (
+                ["index", "-p", project],
+                ("index", {"project": project}),
+                ("POST", "/api/projects/index", {"project": project}),
+            ),
+            (
+                ["add", project, "--no-sync"],
+                ("add", {"sources": [project], "no_sync": True}),
+                ("POST", "/api/projects", {"sources": [project], "no_sync": True}),
+            ),
+            (["sync"], ("sync", {}), ("POST", "/api/projects/sync", {})),
+            (["add", project], ("add", {"sources": [project]}), ("POST", "/api/projects", {"sources": [project]})),
+            (["list"], ("list", {}), ("GET", "/api/projects", {})),
+            (["list", "--indexed"], ("list", {"indexed": True}), ("GET", "/api/projects", {"indexed": "true"})),
         ]
         for cli_arguments, mcp_call, http_call in commands:
             with self.subTest(command=" ".join(cli_arguments)):
                 cli_data = self.cli_data(*cli_arguments)
                 self.assertEqual(cli_data, self.mcp_data(*mcp_call))
-                if http_call:
-                    self.assertEqual(cli_data, self.http_data(*http_call))
+                self.assertEqual(cli_data, self.http_data(*http_call))
 
     def test_failures_carry_the_same_code(self):
         missing, project = str(self.root / "missing"), str(self.project)
@@ -112,14 +129,19 @@ class SameDataFromEveryFrontEnd(unittest.TestCase):
             (
                 ["status", "-p", missing],
                 ("status", {"project": missing}),
-                ("/api/projects/status", {"project": missing}),
+                ("GET", "/api/projects/status", {"project": missing}),
             ),
             (
                 ["search", "-p", project, "  "],
                 ("search", {"project": project, "query": "  "}),
-                ("/api/search", {"project": project, "query": "  "}),
+                ("GET", "/api/search", {"project": project, "query": "  "}),
             ),
-            (["remove", missing], ("remove", {"name": missing}), None),
+            (
+                ["index", "-p", missing],
+                ("index", {"project": missing}),
+                ("POST", "/api/projects/index", {"project": missing}),
+            ),
+            (["remove", missing], ("remove", {"name": missing}), ("DELETE", "/api/projects", {"name": missing})),
         ]
         for cli_arguments, mcp_call, http_call in failures:
             with self.subTest(command=" ".join(cli_arguments)):
@@ -127,8 +149,7 @@ class SameDataFromEveryFrontEnd(unittest.TestCase):
                 result = self.mcp_result(*mcp_call)
                 self.assertTrue(result["isError"])
                 self.assertEqual(result["content"][0]["text"].split(":")[0], cli_code)
-                if http_call:
-                    self.assertEqual(self.http_response(*http_call).json()["error"]["code"], cli_code)
+                self.assertEqual(self.http_response(*http_call).json()["error"]["code"], cli_code)
 
 
 if __name__ == "__main__":
