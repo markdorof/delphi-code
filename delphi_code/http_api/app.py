@@ -9,6 +9,7 @@ from .failures import report_failures_as_json
 from .routes import diagnostics, hosting_services, installation, projects, search
 from .security import require_token
 from .settings import ApiSettings
+from .web_ui_files import WebUiFiles
 
 
 def create_app(delphi_code: DelphiCode, settings: ApiSettings) -> FastAPI:
@@ -35,4 +36,5 @@ def create_app(delphi_code: DelphiCode, settings: ApiSettings) -> FastAPI:
     )
     for router in routers:
         api.include_router(router)
+    api.mount("/", WebUiFiles(directory=settings.web_ui_directory, html=True, check_dir=False))
     return api

@@ -54,6 +54,7 @@ delphi-code = "delphi_code.cli.main:main"
 include = ["delphi_code*"]
 
 [tool.setuptools.package-data]
+"delphi_code" = ["web/**/*"]
 "delphi_code.infrastructure" = ["model_provenance.json", "SKILL.md"]
 
 [dependency-groups]

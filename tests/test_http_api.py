@@ -16,6 +16,7 @@ from delphi_code.http_api.app import create_app
 from delphi_code.http_api.failures import HTTP_STATUS_BY_FAILURE_KIND
 from delphi_code.http_api.progress_stream import NDJSON
 from delphi_code.http_api.settings import ApiSettings
+from delphi_code.http_api.web_ui_files import PAGE_SECURITY_HEADERS
 from delphi_code.infrastructure.registry import Entry, Registry
 from delphi_code.services.application import DelphiCode
 
@@ -82,7 +83,7 @@ class HttpApi(unittest.TestCase):
     def test_no_page_loads_scripts_from_a_cdn(self):
         for path in ("/docs", "/redoc"):
             with self.subTest(path=path):
-                self.assertEqual(self.client.get(path).status_code, 404)
+                self.assertNotIn("<script", self.client.get(path).text)
 
     def stream_lines(self, response) -> list[dict]:
         self.assertEqual(response.status_code, 200, response.text)
@@ -202,3 +203,64 @@ class HttpApi(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WebUiPage(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name).resolve()
+        self.web_ui = self.root / "web"
+        (self.web_ui / "assets").mkdir(parents=True)
+        (self.web_ui / "index.html").write_text("<!doctype html><title>Delphi Code</title>")
+        (self.web_ui / "assets" / "app-1a2b3c.js").write_text("console.log('app')")
+        (self.web_ui / "favicon.svg").write_text("<svg/>")
+        self.client = self.client_serving(self.web_ui)
+
+    def client_serving(self, web_ui: Path) -> TestClient:
+        settings = ApiSettings(TOKEN, web_ui_directory=web_ui)
+        return TestClient(create_app(application(str(self.root / "model")), settings), base_url="http://127.0.0.1")
+
+    def test_the_page_and_its_files_load_without_the_token(self):
+        for path in ("/", "/assets/app-1a2b3c.js", "/favicon.svg"):
+            with self.subTest(path=path):
+                self.assertEqual(self.client.get(path).status_code, 200)
+        self.assertEqual(self.client.get("/api/projects").status_code, 401)
+
+    def test_client_routes_get_the_page(self):
+        for path in ("/projects", "/search?q=retry"):
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                self.assertIn("<title>Delphi Code</title>", response.text)
+
+    def test_unknown_api_paths_stay_json_errors(self):
+        unknown = self.client.get("/api/nothing-here", headers=AUTHORIZED)
+        self.assertEqual((unknown.status_code, unknown.json()["error"]["code"]), (404, "not_found"))
+        wrong_method = self.client.get("/api/projects/sync", headers=AUTHORIZED)
+        self.assertEqual((wrong_method.status_code, wrong_method.json()["error"]["code"]), (405, "method_not_allowed"))
+        self.assertEqual(self.client.post("/projects").status_code, 405)
+
+    def test_openapi_is_still_served_by_the_api(self):
+        self.assertIn("paths", self.client.get("/openapi.json").json())
+
+    def test_page_responses_carry_security_headers(self):
+        for path in ("/", "/projects", "/assets/app-1a2b3c.js"):
+            with self.subTest(path=path):
+                headers = self.client.get(path).headers
+                for name, value in PAGE_SECURITY_HEADERS.items():
+                    self.assertEqual(headers[name], value)
+
+    def test_only_fingerprinted_assets_are_cached(self):
+        self.assertEqual(self.client.get("/").headers["cache-control"], "no-store")
+        self.assertEqual(self.client.get("/projects").headers["cache-control"], "no-store")
+        self.assertIn("immutable", self.client.get("/assets/app-1a2b3c.js").headers["cache-control"])
+
+    def test_foreign_host_names_get_no_page(self):
+        rebound = TestClient(self.client.app, base_url="http://attacker.example")
+        self.assertEqual(rebound.get("/").status_code, 400)
+
+    def test_an_unbuilt_web_ui_says_how_to_build_it(self):
+        response = self.client_serving(self.root / "not-built").get("/")
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("pnpm --dir web build", response.text)
