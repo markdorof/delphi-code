@@ -18,6 +18,7 @@ from prompt_toolkit.output import DummyOutput
 
 from delphi_code.cli.controllers import indexing as indexing_controller
 from delphi_code.cli.controllers import repository_picking
+from delphi_code.cli.terminal.progress import StatusLine, TerminalProgress
 from delphi_code.cli.terminal.prompts import TerminalPrompts
 from delphi_code.cli.terminal.repository_list import RepositoryList, repository_title
 from delphi_code.domain.errors import Failure, FailureKind
@@ -177,7 +178,9 @@ class Picking(unittest.TestCase):
             )
 
     def add_picked(self, prompts):
-        return indexing_controller.add(application(""), [], None, None, True, SILENT, prompts).data
+        return indexing_controller.add(
+            application(""), [], None, None, True, TerminalProgress(StatusLine(None)), prompts
+        ).data
 
     def test_needs_a_terminal_before_asking_for_credentials(self):
         with (

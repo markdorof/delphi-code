@@ -2,7 +2,7 @@ from ...domain.indexing_outcomes import SyncedProject
 from ...domain.selection import FileSelection
 from ...domain.tracking_report import TrackingReport
 from ...services.application import DelphiCode
-from ...services.progress import Progress
+from ..terminal.progress import TerminalProgress
 from ..terminal.text_layout import Message, TextView
 from ..terminal.views.indexing import IndexingOutcomesSummaryView, IndexingOutcomeView
 from ..terminal.views.tracking import TRACK_A_PROJECT_HINT, NewlyTrackedProjectsView, UntrackedProjectView
@@ -11,13 +11,13 @@ from .repository_picking import Prompts
 from .response import ControllerResponse
 
 
-def index(app: DelphiCode, project: str, selection: FileSelection, progress: Progress) -> ControllerResponse:
+def index(app: DelphiCode, project: str, selection: FileSelection, progress: TerminalProgress) -> ControllerResponse:
     outcome = app.index(project, selection, progress)
     view = IndexingOutcomeView(outcome, shows_headline=not progress.showed_outcome_lines)
     return ControllerResponse(outcome.to_json(), [view])
 
 
-def sync(app: DelphiCode, progress: Progress) -> ControllerResponse:
+def sync(app: DelphiCode, progress: TerminalProgress) -> ControllerResponse:
     synced = app.sync(progress)
     if failure := synced.failure_if_any_failed():
         raise failure
@@ -32,7 +32,7 @@ def add(
     ref: str | None,
     selection: FileSelection,
     sync_now: bool,
-    progress: Progress,
+    progress: TerminalProgress,
     prompts: Prompts,
 ) -> ControllerResponse:
     if sources:
@@ -44,7 +44,7 @@ def add(
     return ControllerResponse(added.to_json(), _tracking_change_views(added, progress))
 
 
-def _tracking_change_views(added: TrackingReport, progress: Progress) -> list[TextView]:
+def _tracking_change_views(added: TrackingReport, progress: TerminalProgress) -> list[TextView]:
     if added.cancelled:
         return [Message("Cancelled; nothing changed")]
     untracked = added.untracked or []
@@ -60,5 +60,5 @@ def _tracking_change_views(added: TrackingReport, progress: Progress) -> list[Te
     return views
 
 
-def _indexing_outcomes_view(projects: list[SyncedProject], progress: Progress) -> TextView:
+def _indexing_outcomes_view(projects: list[SyncedProject], progress: TerminalProgress) -> TextView:
     return IndexingOutcomesSummaryView(projects, lists_each_outcome=not progress.showed_outcome_lines)

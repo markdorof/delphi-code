@@ -14,7 +14,11 @@ CORE_LAYERS_EACH_MAY_IMPORT = {
 FRONT_ENDS = ("cli", "mcp_server", "http_api")
 CORE_SEEN_BY_FRONT_ENDS = ("domain.", "services.application.", "services.progress.", "infrastructure.log_file.")
 PORTS_AND_FOUNDATIONS_FOR_TERMINAL_UI = ("domain.", "services.progress")
-VIEW_BUILDING_BLOCKS_FOR_CONTROLLERS = ("cli.terminal.views", "cli.terminal.text_layout")
+TERMINAL_PARTS_FOR_CONTROLLERS = (
+    "cli.terminal.views",
+    "cli.terminal.text_layout",
+    "cli.terminal.progress.TerminalProgress",
+)
 LAYERS_WITHOUT_TERMINAL_ACCESS = (
     "domain",
     "infrastructure",
@@ -97,12 +101,12 @@ class Layers(unittest.TestCase):
                     with self.subTest(module=str(path.relative_to(PACKAGE)), imports=imported):
                         self.assertTrue(imported.startswith(PORTS_AND_FOUNDATIONS_FOR_TERMINAL_UI), imported)
 
-    def test_controllers_use_only_views_from_the_terminal_ui(self):
+    def test_controllers_use_only_views_and_progress_from_the_terminal_ui(self):
         for path, tree in modules_of("cli/controllers"):
             for imported in package_imports(path, tree):
                 if imported.startswith("cli.") and not imported.startswith("cli.controllers"):
                     with self.subTest(module=path.name, imports=imported):
-                        self.assertTrue(imported.startswith(VIEW_BUILDING_BLOCKS_FOR_CONTROLLERS), imported)
+                        self.assertTrue(imported.startswith(TERMINAL_PARTS_FOR_CONTROLLERS), imported)
 
     def test_only_the_terminal_ui_uses_terminal_libraries_and_streams(self):
         for layer in LAYERS_WITHOUT_TERMINAL_ACCESS:

@@ -12,7 +12,6 @@ from ..domain.search_request import MAX_SEARCH_LIMIT, SearchRequest
 from ..domain.selection import DEFAULT_MAX_BYTES, FileSelection
 from ..infrastructure.log_file import write_logs_to_file
 from ..services.application import DelphiCode
-from ..services.progress import Progress
 from .controllers import indexing, installation, project_catalog, searching
 from .controllers.response import ControllerResponse
 from .terminal import output
@@ -125,7 +124,7 @@ def main():
     raise SystemExit(output.write_text_success(response.views))
 
 
-COMMANDS: dict[str, Callable[[DelphiCode, argparse.Namespace, Progress], ControllerResponse]] = {
+COMMANDS: dict[str, Callable[[DelphiCode, argparse.Namespace, TerminalProgress], ControllerResponse]] = {
     "index": lambda app, args, progress: indexing.index(app, args.project, _selection(args), progress),
     "search": lambda app, args, progress: searching.search(
         app, args.project, SearchRequest(args.query, args.path, args.language, args.limit)
