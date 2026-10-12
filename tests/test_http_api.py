@@ -6,10 +6,11 @@ import threading
 import unittest
 from unittest.mock import patch
 
-from fakes import application, use_fake_model
+from fakes import FakeHost, application, use_fake_model
 from fastapi.testclient import TestClient
 
 from delphi_code.domain.errors import Failure, FailureKind
+from delphi_code.domain.hosting_services import Owner, Repository
 from delphi_code.domain.indexing_outcomes import SyncReport
 from delphi_code.http_api.app import create_app
 from delphi_code.http_api.failures import HTTP_STATUS_BY_FAILURE_KIND
@@ -19,6 +20,7 @@ from delphi_code.infrastructure.registry import Entry, Registry
 from delphi_code.services.application import DelphiCode
 
 TOKEN = "http-api-test-token"
+ACME = [Repository("bitbucket.org", "acme", "api", "Public API", False)]
 AUTHORIZED = {"Authorization": f"Bearer {TOKEN}"}
 
 
@@ -147,6 +149,55 @@ class HttpApi(unittest.TestCase):
         self.assertEqual((foreign.status_code, foreign.json()["error"]["code"]), (403, "forbidden_origin"))
         own = self.client.post("/api/projects/sync", headers={**AUTHORIZED, "Origin": "http://127.0.0.1"})
         self.assertEqual(own.status_code, 200)
+
+    def test_lists_hosting_services_and_rereads_credentials(self):
+        configured = [FakeHost([Owner("acme", "Acme")], ACME)]
+        client = self.client_with_hosts(configured)
+        listed = client.get("/api/hosting-services", headers=AUTHORIZED).json()["hosting_services"]
+        self.assertEqual([service["name"] for service in listed], ["Bitbucket"])
+        configured.append(FakeHost([], [], name="GitHub"))
+        listed = client.get("/api/hosting-services", headers=AUTHORIZED).json()["hosting_services"]
+        self.assertEqual([service["name"] for service in listed], ["Bitbucket", "GitHub"])
+
+    def test_lists_owners_and_their_repositories(self):
+        client = self.client_with_hosts([FakeHost([Owner("acme", "Acme")], ACME)])
+        owners = client.get("/api/hosting-services/bitbucket.example/owners", headers=AUTHORIZED).json()
+        self.assertEqual(owners, {"owners": [{"slug": "acme", "name": "Acme"}]})
+        listed = client.get("/api/hosting-services/bitbucket.example/owners/acme/repositories", headers=AUTHORIZED)
+        self.assertEqual(
+            [repository["key"] for repository in listed.json()["repositories"]], ["bitbucket.org/acme/api"]
+        )
+
+    def test_owners_are_null_when_they_must_be_typed(self):
+        forbidden = Failure("remote_permission_denied", "lacks read:workspace", FailureKind.REMOTE_FAILED)
+        client = self.client_with_hosts([FakeHost(forbidden, ACME)])
+        owners = client.get("/api/hosting-services/bitbucket.example/owners", headers=AUTHORIZED).json()
+        self.assertEqual(owners, {"owners": None})
+
+    def test_hosting_services_without_credentials_are_missing_prerequisites(self):
+        for client in (self.client_with_hosts([]), self.client_with_hosts([FakeHost([], [])])):
+            response = client.get("/api/hosting-services/github.example/owners", headers=AUTHORIZED)
+            self.assertEqual((response.status_code, response.json()["error"]["code"]), (503, "remote_auth_missing"))
+
+    def test_applies_picked_changes(self):
+        body = {"added": ["bitbucket.org/acme/api"], "no_sync": True}
+        lines = self.stream_lines(self.client.post("/api/projects/picked", json=body, headers=AUTHORIZED))
+        self.assertEqual(
+            lines[-1]["done"]["repos"], [{"source": "bitbucket.org/acme/api", "key": "bitbucket.org/acme/api"}]
+        )
+        self.assertEqual((lines[-1]["done"]["removed"], lines[-1]["done"]["cancelled"]), ([], False))
+        self.assertEqual([entry.source for entry in Registry().entries()], ["bitbucket.org/acme/api"])
+
+    def test_picked_changes_accept_only_repository_keys(self):
+        for key in (str(self.project), "bitbucket.org/acme", "Bitbucket.org/Acme/API"):
+            with self.subTest(key=key):
+                response = self.client.post("/api/projects/picked", json={"removed": [key]}, headers=AUTHORIZED)
+                self.assertEqual((response.status_code, response.json()["error"]["code"]), (400, "usage"))
+        self.assertEqual(Registry().entries(), [])
+
+    def client_with_hosts(self, hosts) -> TestClient:
+        api = create_app(application(str(self.root / "model"), repository_hosts=hosts), ApiSettings(TOKEN))
+        return TestClient(api, base_url="http://127.0.0.1")
 
 
 if __name__ == "__main__":

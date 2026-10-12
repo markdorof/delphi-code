@@ -4,6 +4,8 @@ from unittest.mock import patch
 import numpy as np
 
 from delphi_code.domain.diagnostics import Diagnostics
+from delphi_code.domain.errors import Failure
+from delphi_code.domain.hosting_services import HostingService
 from delphi_code.domain.index_state import IndexCounts
 from delphi_code.domain.indexing_outcomes import IndexingOutcome
 from delphi_code.domain.manifest import IndexedRevision
@@ -61,3 +63,26 @@ def diagnostics(model: str = "/models/m") -> Diagnostics:
 def application(model_location: str = "/models/m", repository_hosts=None) -> DelphiCode:
     find_hosts = None if repository_hosts is None else (lambda: repository_hosts)
     return DelphiCode(model_location, Store(), Registry(), find_hosts)
+
+
+class FakeHost:
+    owner_noun = "workspace"
+
+    def __init__(self, owners, repositories, name="Bitbucket", suggested_owner=None):
+        self._owners, self._repositories, self.name = owners, repositories, name
+        self.domain = f"{name.lower()}.example"
+        self._suggested_owner = suggested_owner
+
+    def description(self):
+        return HostingService(self.domain, self.name, self.owner_noun, self._suggested_owner)
+
+    def owners(self):
+        if isinstance(self._owners, Failure):
+            raise self._owners
+        return self._owners
+
+    def suggested_owner(self):
+        return self._suggested_owner
+
+    def repositories(self, owner):
+        return [repository for repository in self._repositories if repository.owner == owner]

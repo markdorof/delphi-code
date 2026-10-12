@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..domain.selection import DEFAULT_MAX_BYTES, FileSelection
+from ..domain.tracking_changes import TrackingChanges
 
 
 class RequestModel(BaseModel):
@@ -29,3 +30,13 @@ class AddRequest(FileSelectionRequest):
 
 class SetupRequest(RequestModel):
     import_from: str | None = Field(None, alias="from", description="Prepared model directory to import")
+
+
+class PickedChangesRequest(FileSelectionRequest):
+    added: list[str] = Field(default_factory=list, description="Repository keys to track, such as github.com/acme/api")
+    removed: list[str] = Field(default_factory=list, description="Repository keys to stop tracking")
+    ref: str | None = Field(None, description="Branch or tag of the added repositories")
+    no_sync: bool = Field(False, description="Only update the registry")
+
+    def changes(self) -> TrackingChanges:
+        return TrackingChanges(self.added, self.removed)

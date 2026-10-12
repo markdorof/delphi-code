@@ -1,6 +1,6 @@
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ResponseModel(BaseModel):
@@ -187,3 +187,38 @@ class ModelSetupResponse(ResponseModel):
     reused: bool
     diagnostics: DiagnosticsResponse
     agents: list[AgentConnectionResponse] | None = None
+
+
+class HostingServiceResponse(ResponseModel):
+    domain: str
+    name: str
+    owner_noun: str
+    suggested_owner: str | None
+
+
+class HostingServicesResponse(ResponseModel):
+    hosting_services: list[HostingServiceResponse]
+
+
+class OwnerResponse(ResponseModel):
+    slug: str
+    name: str
+
+
+class OwnersResponse(ResponseModel):
+    owners: list[OwnerResponse] | None = Field(
+        description="The owners these credentials can list, or null when the owner must be typed"
+    )
+
+
+class RepositoryResponse(ResponseModel):
+    key: str
+    host: str
+    owner: str
+    slug: str
+    description: str
+    private: bool
+
+
+class RepositoriesResponse(ResponseModel):
+    repositories: list[RepositoryResponse]

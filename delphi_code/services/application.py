@@ -93,8 +93,11 @@ class DelphiCode:
 
         return disconnect_agents(command, agents)
 
-    def hosting_services_with_credentials(self) -> list[HostingService]:
-        return self._hosting_services.with_credentials()
+    def hosting_services_with_credentials(self, refresh: bool = False) -> list[HostingService]:
+        return self._hosting_services.with_credentials(refresh)
+
+    def hosting_service(self, domain: str) -> HostingService:
+        return self._hosting_services.named(domain)
 
     def tracked_keys(self) -> set[str]:
         return remote_repositories.tracked_keys(self._registry)

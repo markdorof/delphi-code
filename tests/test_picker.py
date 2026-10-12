@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 
-from fakes import application
+from fakes import FakeHost, application
 from prompt_toolkit.input import create_pipe_input
 from prompt_toolkit.output import DummyOutput
 
@@ -22,7 +22,7 @@ from delphi_code.cli.terminal.progress import StatusLine, TerminalProgress
 from delphi_code.cli.terminal.prompts import TerminalPrompts
 from delphi_code.cli.terminal.repository_list import RepositoryList, repository_title
 from delphi_code.domain.errors import Failure, FailureKind
-from delphi_code.domain.hosting_services import HostingService, Owner, Repository
+from delphi_code.domain.hosting_services import Owner, Repository
 from delphi_code.domain.tracking_changes import TrackingChanges
 from delphi_code.infrastructure import hosts
 from delphi_code.infrastructure.hosts import Bitbucket, GitHub, configured_hosts
@@ -37,29 +37,6 @@ def answering(value):
 
 def choosing(keys):
     return patch("delphi_code.cli.terminal.prompts.ask_repositories", return_value=None if keys is None else set(keys))
-
-
-class FakeHost:
-    owner_noun = "workspace"
-
-    def __init__(self, owners, repositories, name="Bitbucket", suggested_owner=None):
-        self._owners, self._repositories, self.name = owners, repositories, name
-        self.domain = f"{name.lower()}.example"
-        self._suggested_owner = suggested_owner
-
-    def description(self):
-        return HostingService(self.domain, self.name, self.owner_noun, self._suggested_owner)
-
-    def owners(self):
-        if isinstance(self._owners, Failure):
-            raise self._owners
-        return self._owners
-
-    def suggested_owner(self):
-        return self._suggested_owner
-
-    def repositories(self, owner):
-        return [repository for repository in self._repositories if repository.owner == owner]
 
 
 ACME = [

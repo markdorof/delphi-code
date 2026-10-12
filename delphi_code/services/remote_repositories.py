@@ -29,8 +29,16 @@ class ConnectedHostingServices:
         self._find_hosts = find_hosts
         self._hosts_by_domain: dict[str, RepositoryHost] = {}
 
-    def with_credentials(self) -> list[HostingService]:
+    def with_credentials(self, refresh: bool = False) -> list[HostingService]:
+        if refresh:
+            self._hosts_by_domain = {}
         return [host.description() for host in self._connected().values()]
+
+    def named(self, domain: str) -> HostingService:
+        host = self._connected().get(domain)
+        if host is None:
+            raise Failure("remote_auth_missing", f"No credentials found for {domain}", FailureKind.PREREQUISITE_MISSING)
+        return host.description()
 
     def owners_if_listable(self, service: HostingService, progress: Progress) -> list[Owner] | None:
         host = self._host_of(service)
@@ -101,5 +109,17 @@ def apply_picked_changes(
 ) -> TrackingReport:
     if changes is None:
         return TrackingReport(str(registry.path), [], untracked=[], cancelled=True)
+    _require_remote_repository_keys([*changes.added, *changes.removed])
     applied = apply_tracking_changes(store, registry, changes, ref, selection, model_location, sync_now, progress)
     return replace(applied, cancelled=False)
+
+
+def _require_remote_repository_keys(keys: list[str]):
+    from ..infrastructure.sources import GitRemoteSource, source_from_registry
+
+    for key in keys:
+        source = source_from_registry(key)
+        if not isinstance(source, GitRemoteSource) or source.key.lower() != key:
+            raise Failure(
+                "usage", f"{key} is not a repository such as github.com/owner/repository", FailureKind.INVALID_REQUEST
+            )
