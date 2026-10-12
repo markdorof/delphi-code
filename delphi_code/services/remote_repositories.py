@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from ..domain.errors import Failure, FailureKind
+from ..domain.hosting_services import HostingService, Owner, Repository
 from ..domain.selection import FileSelection
 from ..domain.tracking_changes import TrackingChanges
 from ..domain.tracking_report import TrackingReport
@@ -14,54 +15,78 @@ from .progress import Progress
 from .tracking import apply_tracking_changes
 
 if TYPE_CHECKING:
-    from ..infrastructure.hosts import Owner, Repository, RepositoryHost
+    from ..infrastructure.hosts import RepositoryHost
 
 
-def hosts_with_credentials() -> Sequence[RepositoryHost]:
-    from ..infrastructure.hosts import configured_hosts
+MISSING_CREDENTIALS_MESSAGE = (
+    "Picking repositories needs Bitbucket or GitHub credentials: set BITBUCKET_USERNAME and BITBUCKET_APP_PASSWORD "
+    "or GITHUB_TOKEN, sign in with gh auth login, or store git credentials for bitbucket.org or github.com"
+)
 
-    hosts = configured_hosts()
-    if not hosts:
-        raise Failure(
-            "remote_auth_missing",
-            "Picking repositories needs Bitbucket or GitHub credentials: set BITBUCKET_USERNAME and BITBUCKET_APP_PASSWORD or GITHUB_TOKEN, sign in with gh auth login, or store git credentials for bitbucket.org or github.com",
-            FailureKind.PREREQUISITE_MISSING,
-        )
-    return hosts
+
+class ConnectedHostingServices:
+    def __init__(self, find_hosts: Callable[[], Sequence[RepositoryHost]] | None = None):
+        self._find_hosts = find_hosts
+        self._hosts_by_domain: dict[str, RepositoryHost] = {}
+
+    def with_credentials(self) -> list[HostingService]:
+        return [host.description() for host in self._connected().values()]
+
+    def owners_if_listable(self, service: HostingService, progress: Progress) -> list[Owner] | None:
+        host = self._host_of(service)
+        progress.owners_listing_started(service.name, service.owner_noun)
+        try:
+            owners = host.owners()
+        except Failure as failure:
+            if failure.code != "remote_permission_denied":
+                raise
+            return None
+        finally:
+            progress.listing_finished()
+        if not owners:
+            raise Failure("remote_empty", f"Your {service.name} account has no repositories", FailureKind.NOT_FOUND)
+        return owners
+
+    def repositories_of_owner(self, service: HostingService, owner: str, progress: Progress) -> list[Repository]:
+        host = self._host_of(service)
+        progress.repositories_listing_started(service.name, owner)
+        try:
+            repositories = host.repositories(owner)
+        finally:
+            progress.listing_finished()
+        if not repositories:
+            raise Failure(
+                "remote_empty",
+                f"You have no repositories in the {service.name} {service.owner_noun} {owner}",
+                FailureKind.NOT_FOUND,
+            )
+        return repositories
+
+    def _connected(self) -> dict[str, RepositoryHost]:
+        if not self._hosts_by_domain:
+            self._hosts_by_domain = {host.domain: host for host in self._hosts_with_credentials()}
+        if not self._hosts_by_domain:
+            raise Failure("remote_auth_missing", MISSING_CREDENTIALS_MESSAGE, FailureKind.PREREQUISITE_MISSING)
+        return self._hosts_by_domain
+
+    def _hosts_with_credentials(self) -> Sequence[RepositoryHost]:
+        if self._find_hosts is not None:
+            return self._find_hosts()
+        from ..infrastructure.hosts import configured_hosts
+
+        return configured_hosts()
+
+    def _host_of(self, service: HostingService) -> RepositoryHost:
+        host = self._connected().get(service.domain)
+        if host is None:
+            raise Failure(
+                "remote_auth_missing", f"No credentials found for {service.name}", FailureKind.PREREQUISITE_MISSING
+            )
+        return host
 
 
 def tracked_keys(registry: Registry) -> set[str]:
     return {entry.current_key() for entry in registry.entries()}
-
-
-def owners_if_listable(host: RepositoryHost, progress: Progress) -> list[Owner] | None:
-    progress.owners_listing_started(host.name, host.owner_noun)
-    try:
-        owners = host.owners()
-    except Failure as failure:
-        if failure.code != "remote_permission_denied":
-            raise
-        return None
-    finally:
-        progress.listing_finished()
-    if not owners:
-        raise Failure("remote_empty", f"Your {host.name} account has no repositories", FailureKind.NOT_FOUND)
-    return owners
-
-
-def repositories_of_owner(host: RepositoryHost, owner: str, progress: Progress) -> list[Repository]:
-    progress.repositories_listing_started(host.name, owner)
-    try:
-        repositories = host.repositories(owner)
-    finally:
-        progress.listing_finished()
-    if not repositories:
-        raise Failure(
-            "remote_empty",
-            f"You have no repositories in the {host.name} {host.owner_noun} {owner}",
-            FailureKind.NOT_FOUND,
-        )
-    return repositories
 
 
 def apply_picked_changes(

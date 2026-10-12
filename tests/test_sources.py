@@ -230,7 +230,7 @@ class RemoteSync(LocalHostWithApiRepository):
 
     def pick(self, changes):
         self.enterContext(patch("delphi_code.cli.terminal.prompts.TerminalPrompts.require_terminal"))
-        self.enterContext(patch("delphi_code.infrastructure.hosts.configured_hosts", return_value=["host"]))
+        self.enterContext(patch("delphi_code.infrastructure.hosts.configured_hosts", return_value=[Bitbucket()]))
         return self.enterContext(
             patch("delphi_code.cli.controllers.repository_picking.pick_tracking_changes", return_value=changes)
         )

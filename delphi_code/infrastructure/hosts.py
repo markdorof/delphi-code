@@ -13,6 +13,7 @@ from urllib.request import Request, urlopen
 
 if __package__:
     from ..domain.errors import Failure, FailureKind
+    from ..domain.hosting_services import HostingService, Owner, Repository
 
 PAGE_LENGTH = 100
 REQUEST_TIMEOUT_SECONDS = 60
@@ -20,26 +21,9 @@ LISTING_TIMEOUT_SECONDS = 300
 API_TOKEN_GIT_USERNAME = "x-bitbucket-api-token-auth"
 
 
-class Owner(NamedTuple):
-    slug: str
-    name: str
-
-
 class ApiCredentials(NamedTuple):
     authorization: str
     source: str
-
-
-class Repository(NamedTuple):
-    host: str
-    owner: str
-    slug: str
-    description: str
-    private: bool
-
-    @property
-    def key(self):
-        return f"{self.host}/{self.owner}/{self.slug}".lower()
 
 
 class RepositoryHost:
@@ -72,6 +56,9 @@ class RepositoryHost:
 
     def has_api_credentials(self):
         return self._available_api_credentials is not None
+
+    def description(self) -> "HostingService":
+        return HostingService(self.domain, self.name, self.owner_noun, self.suggested_owner())
 
     def owners(self):
         return [Owner(**item) for item in self._list_in_child_process("owners")]
@@ -119,8 +106,14 @@ class RepositoryHost:
             )
         return credentials
 
-    def _repository(self, owner, slug, description, private):
-        return Repository(self.domain, owner, slug, description or "", bool(private))
+    def _repository_fields_for(self, owner, slug, description, private) -> dict:
+        return {
+            "host": self.domain,
+            "owner": owner,
+            "slug": slug,
+            "description": description or "",
+            "private": bool(private),
+        }
 
     def _fetch_pages(self, url):
         values = []
@@ -238,11 +231,11 @@ class Bitbucket(RepositoryHost):
         for membership in memberships:
             workspace = membership.get("workspace", membership)
             names_by_slug[workspace["slug"]] = workspace.get("name") or workspace["slug"]
-        return [Owner(slug, name) for slug, name in sorted(names_by_slug.items())]
+        return [{"slug": slug, "name": name} for slug, name in sorted(names_by_slug.items())]
 
     def _list_repositories(self, workspace):
         return [
-            self._repository(workspace, item["slug"], item.get("description"), item.get("is_private"))
+            self._repository_fields_for(workspace, item["slug"], item.get("description"), item.get("is_private"))
             for item in self._fetch_pages(self._repositories_url(workspace))
         ]
 
@@ -301,10 +294,12 @@ class GitHub(RepositoryHost):
 
     def _list_repositories(self, owner=None):
         repositories = [
-            self._repository(item["owner"]["login"], item["name"], item.get("description"), item.get("private"))
+            self._repository_fields_for(
+                item["owner"]["login"], item["name"], item.get("description"), item.get("private")
+            )
             for item in self._fetch_pages(self._repositories_url())
         ]
-        return [repository for repository in repositories if owner in (None, repository.owner)]
+        return [repository for repository in repositories if owner in (None, repository["owner"])]
 
     def _next_page_url(self, page, link_header):
         match = self._next_link.search(link_header)
@@ -409,7 +404,7 @@ def main(arguments):
     except (URLError, OSError, ValueError, KeyError, TypeError) as exc:
         print(json.dumps({"error": {"status": None, "message": str(exc)}}))
         return 1
-    print(json.dumps([item._asdict() for item in items]))
+    print(json.dumps(items))
     return 0
 
 

@@ -22,9 +22,10 @@ from delphi_code.cli.terminal.progress import StatusLine, TerminalProgress
 from delphi_code.cli.terminal.prompts import TerminalPrompts
 from delphi_code.cli.terminal.repository_list import RepositoryList, repository_title
 from delphi_code.domain.errors import Failure, FailureKind
+from delphi_code.domain.hosting_services import HostingService, Owner, Repository
 from delphi_code.domain.tracking_changes import TrackingChanges
 from delphi_code.infrastructure import hosts
-from delphi_code.infrastructure.hosts import Bitbucket, GitHub, Owner, Repository, configured_hosts
+from delphi_code.infrastructure.hosts import Bitbucket, GitHub, configured_hosts
 from delphi_code.services.progress import SILENT, Progress
 
 CREDENTIAL_VARIABLES = ("BITBUCKET_USERNAME", "BITBUCKET_APP_PASSWORD", "BITBUCKET_EMAIL", "GITHUB_TOKEN", "GH_TOKEN")
@@ -43,7 +44,11 @@ class FakeHost:
 
     def __init__(self, owners, repositories, name="Bitbucket", suggested_owner=None):
         self._owners, self._repositories, self.name = owners, repositories, name
+        self.domain = f"{name.lower()}.example"
         self._suggested_owner = suggested_owner
+
+    def description(self):
+        return HostingService(self.domain, self.name, self.owner_noun, self._suggested_owner)
 
     def owners(self):
         if isinstance(self._owners, Failure):
@@ -67,7 +72,9 @@ OCTO = [Repository("github.com", "octo", "tools", "", False)]
 
 def pick(hosts, tracked_keys, terminal=None):
     prompts = TerminalPrompts({} if terminal is None else terminal)
-    return repository_picking.pick_tracking_changes(application(), hosts, tracked_keys, prompts, SILENT)
+    app = application(repository_hosts=hosts)
+    services = app.hosting_services_with_credentials()
+    return repository_picking.pick_tracking_changes(app, services, tracked_keys, prompts, SILENT)
 
 
 def pick_from(owners, tracked_keys, repositories=ACME, terminal=None):
@@ -99,7 +106,7 @@ class Picking(unittest.TestCase):
         bitbucket = FakeHost([Owner("acme", "Acme")], ACME)
         github = FakeHost([Owner("octo", "octo")], OCTO, name="GitHub")
         with (
-            patch("questionary.select", answering(github)) as select,
+            patch("questionary.select", answering(github.description())) as select,
             choosing(["github.com/octo/tools"]),
             patch("questionary.confirm", answering(True)),
         ):
@@ -206,7 +213,9 @@ class Picking(unittest.TestCase):
         prompts = MagicMock(spec=TerminalPrompts)
         prompts.type_owner.side_effect = lambda host: progress.mock_calls.append("type_owner") or "acme"
         prompts.choose_repositories.return_value = None
-        repository_picking.pick_tracking_changes(application(), [FakeHost(forbidden, ACME)], set(), prompts, progress)
+        app = application(repository_hosts=[FakeHost(forbidden, ACME)])
+        services = app.hosting_services_with_credentials()
+        repository_picking.pick_tracking_changes(app, services, set(), prompts, progress)
         self.assertEqual(
             [str(event) for event in progress.mock_calls],
             [

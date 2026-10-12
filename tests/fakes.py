@@ -58,5 +58,6 @@ def diagnostics(model: str = "/models/m") -> Diagnostics:
     )
 
 
-def application(model_location: str = "/models/m") -> DelphiCode:
-    return DelphiCode(model_location, Store(), Registry())
+def application(model_location: str = "/models/m", repository_hosts=None) -> DelphiCode:
+    find_hosts = None if repository_hosts is None else (lambda: repository_hosts)
+    return DelphiCode(model_location, Store(), Registry(), find_hosts)

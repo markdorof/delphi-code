@@ -51,7 +51,7 @@ class TerminalPrompts:
 
         answer = questionary.text(
             f"These credentials cannot list {host.name} {host.owner_noun}s. {host.name} {host.owner_noun} to index:",
-            default=host.suggested_owner() or "",
+            default=host.suggested_owner or "",
             **self._streams(),
         ).ask()
         return (answer or "").strip() or None

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING
 
 from ..domain.agent_connection import AgentConnectionsReport
 from ..domain.diagnostics import Diagnostics, ModelSetup
+from ..domain.hosting_services import HostingService, Owner, Repository
 from ..domain.index_state import IndexState
 from ..domain.indexing_outcomes import IndexingOutcome, SyncReport
 from ..domain.project_listing import ProjectListing
@@ -20,14 +21,21 @@ from . import indexing, project_catalog, remote_repositories, searching, trackin
 from .progress import SILENT, Progress
 
 if TYPE_CHECKING:
-    from ..infrastructure.hosts import Owner, Repository, RepositoryHost
+    from ..infrastructure.hosts import RepositoryHost
 
 
 class DelphiCode:
-    def __init__(self, model_location: str, store: Store, registry: Registry):
+    def __init__(
+        self,
+        model_location: str,
+        store: Store,
+        registry: Registry,
+        find_repository_hosts: Callable[[], Sequence[RepositoryHost]] | None = None,
+    ):
         self._model_location = model_location
         self._store = store
         self._registry = registry
+        self._hosting_services = remote_repositories.ConnectedHostingServices(find_repository_hosts)
 
     @classmethod
     def from_environment(cls) -> DelphiCode:
@@ -85,17 +93,19 @@ class DelphiCode:
 
         return disconnect_agents(command, agents)
 
-    def hosts_with_credentials(self) -> Sequence[RepositoryHost]:
-        return remote_repositories.hosts_with_credentials()
+    def hosting_services_with_credentials(self) -> list[HostingService]:
+        return self._hosting_services.with_credentials()
 
     def tracked_keys(self) -> set[str]:
         return remote_repositories.tracked_keys(self._registry)
 
-    def owners_if_listable(self, host: RepositoryHost, progress: Progress = SILENT) -> list[Owner] | None:
-        return remote_repositories.owners_if_listable(host, progress)
+    def owners_if_listable(self, service: HostingService, progress: Progress = SILENT) -> list[Owner] | None:
+        return self._hosting_services.owners_if_listable(service, progress)
 
-    def repositories_of_owner(self, host: RepositoryHost, owner: str, progress: Progress = SILENT) -> list[Repository]:
-        return remote_repositories.repositories_of_owner(host, owner, progress)
+    def repositories_of_owner(
+        self, service: HostingService, owner: str, progress: Progress = SILENT
+    ) -> list[Repository]:
+        return self._hosting_services.repositories_of_owner(service, owner, progress)
 
     def apply_picked_changes(
         self,

@@ -1,5 +1,6 @@
 from typing import Protocol
 
+from ...domain.hosting_services import HostingService, Owner, Repository
 from ...domain.selection import FileSelection
 from ...domain.tracking_changes import TrackingChanges
 from ...domain.tracking_report import TrackingReport
@@ -9,15 +10,17 @@ from ...services.progress import Progress
 
 class Prompts(Protocol):
     def require_terminal(self) -> None: ...
-    def choose_host(self, hosts): ...
-    def choose_owner(self, host, owners) -> str | None: ...
-    def type_owner(self, host) -> str | None: ...
-    def choose_repositories(self, owner, repositories, tracked_keys) -> set[str] | None: ...
+    def choose_host(self, hosts: list[HostingService]) -> HostingService | None: ...
+    def choose_owner(self, host: HostingService, owners: list[Owner]) -> str | None: ...
+    def type_owner(self, host: HostingService) -> str | None: ...
+    def choose_repositories(
+        self, owner: str, repositories: list[Repository], tracked_keys: set[str]
+    ) -> set[str] | None: ...
     def confirm_changes(self, changes: TrackingChanges) -> bool: ...
 
 
 def pick_tracking_changes(
-    app: DelphiCode, hosts, tracked_keys, prompts: Prompts, progress: Progress
+    app: DelphiCode, hosts: list[HostingService], tracked_keys: set[str], prompts: Prompts, progress: Progress
 ) -> TrackingChanges | None:
     host = hosts[0] if len(hosts) == 1 else prompts.choose_host(hosts)
     if host is None:
@@ -39,12 +42,12 @@ def add_picked(
     app: DelphiCode, ref: str | None, selection: FileSelection, sync_now: bool, progress: Progress, prompts: Prompts
 ) -> TrackingReport:
     prompts.require_terminal()
-    hosts = app.hosts_with_credentials()
+    hosts = app.hosting_services_with_credentials()
     changes = pick_tracking_changes(app, hosts, app.tracked_keys(), prompts, progress)
     return app.apply_picked_changes(changes, ref, selection, sync_now, progress)
 
 
-def _pick_owner(app: DelphiCode, host, prompts: Prompts, progress: Progress) -> str | None:
+def _pick_owner(app: DelphiCode, host: HostingService, prompts: Prompts, progress: Progress) -> str | None:
     owners = app.owners_if_listable(host, progress)
     if owners is None:
         return prompts.type_owner(host)
