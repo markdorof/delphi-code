@@ -32,6 +32,7 @@ dependencies = [
   "pathspec==0.12.1",
   "questionary==2.1.1",
   "fastapi==0.141.1",
+  "uvicorn==0.54.0",
   "certifi",
   # Indirect dependencies, bounded because uv tool install ignores uv.lock
   "pydantic>=2.13,<2.14",

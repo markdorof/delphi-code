@@ -4,7 +4,7 @@ Delphi Code's original application code uses the repository's Apache-2.0 license
 
 ## Dependencies
 
-The tested direct dependencies are CocoIndex 1.0.24 (Apache-2.0), sqlite-vec 0.1.9 (MIT or Apache-2.0), SentenceTransformers 6.1.0 (Apache-2.0), NumPy 2.5.3 (BSD and bundled component notices), and pathspec 0.12.1 (MPL-2.0). They were installed from PyPI without modification. Exact transitive dependency versions are recorded in `requirements-lock.txt`; this version freeze does not authenticate wheel contents.
+The tested direct dependencies are CocoIndex 1.0.24 (Apache-2.0), sqlite-vec 0.1.9 (MIT or Apache-2.0), SentenceTransformers 6.1.0 (Apache-2.0), NumPy 2.5.3 (BSD and bundled component notices), pathspec 0.12.1 (MPL-2.0), questionary 2.1.1 (MIT), FastAPI 0.141.1 (MIT), and Uvicorn 0.54.0 (BSD-3-Clause). They were installed from PyPI without modification. Exact transitive dependency versions are recorded in `requirements-lock.txt`; this version freeze does not authenticate wheel contents.
 
 For a release that bundles dependencies, collect their licenses and notices from the actual release environment with `scripts/collect_notices.py`. During online preparation, `scripts/prepare_notices.py` retrieves supplemental upstream license texts omitted from the tested wheels. Both write to `build/third_party/`. Review the collection against the release contents, include required native-library and interpreter notices, and meet applicable source-availability obligations. The generated collection is excluded from the application package and source repository.
 
