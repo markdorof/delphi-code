@@ -4,6 +4,7 @@ set -eu
 
 DELPHI_CODE_RELEASE_VERSION=""
 UV_INSTALLER_URL="https://astral.sh/uv/install.sh"
+SUPPORTED_PYTHON=">=3.12,<3.15"
 
 say() {
   printf 'delphi-code installer: %s\n' "$1"
@@ -142,7 +143,7 @@ main() {
 
   package_spec=$(package_spec_for "$requested_version")
   say "installing $package_spec with $uv"
-  "$uv" tool install --managed-python --upgrade "$package_spec" </dev/null
+  "$uv" tool install --managed-python --python "$SUPPORTED_PYTHON" --upgrade "$package_spec" </dev/null
 
   tool_bin_dir=$("$uv" tool dir --bin)
   delphi_code="$tool_bin_dir/delphi-code"
