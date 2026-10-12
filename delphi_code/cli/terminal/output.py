@@ -54,12 +54,31 @@ def write_text_failure(failure: Failure) -> int:
     return EXIT_CODE_BY_FAILURE_KIND[failure.kind]
 
 
+def write_web_ui_opened(page_url: str, already_running: bool):
+    address = page_url.split("#", 1)[0]
+    if already_running:
+        _write_line(f"Opened the Delphi Code web UI already running at {address}")
+    else:
+        _write_line(f"Delphi Code is open in your browser at {address}. Press Ctrl-C to stop it.")
+
+
+def write_web_ui_address(page_url: str, already_running: bool):
+    if already_running:
+        _write_line(f"Delphi Code is already running at {page_url}")
+    else:
+        _write_line(f"Delphi Code is running at {page_url}\nPress Ctrl-C to stop it.")
+
+
 def failure_of(exc: Exception) -> Failure:
     if os.environ.get("DELPHI_CODE_DEBUG") == "1":
         import traceback
 
         traceback.print_exc(file=sys.stderr)
     return Failure.from_exception(exc)
+
+
+def _write_line(text: str):
+    print(text, flush=True)
 
 
 def _write_failure_message(failure: Failure):

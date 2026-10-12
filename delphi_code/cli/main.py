@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import sys
 import time
+import webbrowser
 
 from ..domain.errors import Failure, FailureKind
 from ..domain.search_request import MAX_SEARCH_LIMIT, SearchRequest
@@ -88,6 +89,8 @@ def arguments() -> argparse.Namespace:
             help="claude-desktop, claude-code, codex, cursor, vscode, gemini or opencode; omit for every installed agent",
         )
     commands.add_parser("mcp", help="Serve the other commands as MCP tools over stdio")
+    web_ui = commands.add_parser("ui", help="Open the web UI, starting its local server unless one is running")
+    web_ui.add_argument("--no-browser", action="store_true", help="Print the page's address instead of opening it")
     return parser.parse_args()
 
 
@@ -106,6 +109,9 @@ def main():
         args = arguments()
         if args.command == "mcp":
             _serve_mcp()
+            return
+        if args.command == "ui":
+            _serve_web_ui(open_browser=not args.no_browser)
             return
         command, write_json = args.command, output.json_output_requested(json_flag=args.json)
         logger.info("%s started in %s", command, Path.cwd())
@@ -150,6 +156,22 @@ def _serve_mcp():
     from ..mcp_server import serve as serve_mcp
 
     serve_mcp()
+
+
+def _serve_web_ui(open_browser: bool):
+    logger.info("ui started in %s", Path.cwd())
+    from ..http_api import serve as serve_web_ui
+
+    def show_page(page_url: str, already_running: bool):
+        if open_browser and webbrowser.open(page_url):
+            output.write_web_ui_opened(page_url, already_running)
+        else:
+            output.write_web_ui_address(page_url, already_running)
+
+    try:
+        serve_web_ui(show_page)
+    except KeyboardInterrupt:
+        logger.info("ui stopped")
 
 
 def _delphi_code_command() -> str:

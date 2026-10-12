@@ -12,7 +12,13 @@ CORE_LAYERS_EACH_MAY_IMPORT = {
     "services": {"domain", "infrastructure", "services"},
 }
 FRONT_ENDS = ("cli", "mcp_server", "http_api")
-CORE_SEEN_BY_FRONT_ENDS = ("domain.", "services.application.", "services.progress.", "infrastructure.log_file.")
+CORE_SEEN_BY_FRONT_ENDS = (
+    "domain.",
+    "services.application.",
+    "services.progress.",
+    "infrastructure.log_file.",
+    "infrastructure.web_ui_server_record.",
+)
 PORTS_AND_FOUNDATIONS_FOR_TERMINAL_UI = ("domain.", "services.progress")
 TERMINAL_PARTS_FOR_CONTROLLERS = (
     "cli.terminal.views",

@@ -27,3 +27,7 @@ def log_path():
     return (
         Path(os.environ.get("DELPHI_CODE_LOG_FILE") or data_directory() / "logs/delphi-code.log").expanduser().resolve()
     )
+
+
+def web_ui_server_record_path():
+    return data_directory() / "web-ui-server.json"
