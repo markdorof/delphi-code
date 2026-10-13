@@ -22,6 +22,15 @@ export function addSummary(report: TrackingReport): string {
   return synced;
 }
 
+export function pickedSummary(report: StreamedWriteResult<"/api/projects/picked">): string {
+  const stoppedTracking = report.removed?.length ?? 0;
+  const parts = [
+    addSummary(report),
+    stoppedTracking && `Stopped tracking ${pluralized(stoppedTracking, "repository")}.`,
+  ];
+  return parts.filter(Boolean).join(" ") || "Nothing changed.";
+}
+
 function syncedCounts(repos: SyncedOrTracked[]): string {
   const synced = repos.filter((repo) => "ok" in repo);
   const failed = synced.filter((repo) => !repo.ok).length;

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { PlusIcon, RefreshCwIcon } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { CloudDownloadIcon, PlusIcon, RefreshCwIcon } from "lucide-react";
 import { useState } from "react";
 import { useWriteActivity } from "@/activity/WriteActivityProvider";
 import { dataOrFailure } from "@/api/apiClient";
@@ -48,6 +48,12 @@ export function ProjectsPage() {
         <Button variant="outline" onClick={syncAll} disabled={writeRunning}>
           <RefreshCwIcon />
           Sync all
+        </Button>
+        <Button asChild variant="outline">
+          <Link to="/projects/from-account">
+            <CloudDownloadIcon />
+            From your account
+          </Link>
         </Button>
         <Button onClick={() => setAdding(true)} disabled={writeRunning}>
           <PlusIcon />

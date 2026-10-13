@@ -8,6 +8,7 @@ class ResizeObserverThatNeverFires {
 }
 
 globalThis.ResizeObserver ??= ResizeObserverThatNeverFires;
+Element.prototype.scrollIntoView ??= () => {};
 
 afterEach(() => {
   cleanup();

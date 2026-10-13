@@ -50,3 +50,22 @@ describe("write summaries", () => {
     expect(addSummary({ registry: "/repos.toml", repos: [INDEXED] })).toBe("1 project indexed.");
   });
 });
+
+describe("picked summaries", () => {
+  it("reports both tracked and untracked repositories", async () => {
+    const { pickedSummary } = await import("./writeSummaries");
+    expect(pickedSummary({ registry: "/repos.toml", repos: [], removed: [], cancelled: false })).toBe(
+      "Nothing changed.",
+    );
+    expect(
+      pickedSummary({
+        registry: "/repos.toml",
+        repos: [],
+        removed: [
+          { key: "a", deleted_index: null },
+          { key: "b", deleted_index: null },
+        ],
+      }),
+    ).toBe("Stopped tracking 2 repositories.");
+  });
+});
