@@ -74,8 +74,9 @@ jobs:
           import zipfile
           (wheel,) = glob.glob('dist/*.whl')
           (sdist,) = glob.glob('dist/*.tar.gz')
-          assert 'delphi_code/web/index.html' in zipfile.ZipFile(wheel).namelist(), wheel
-          assert any(name.endswith('/delphi_code/web/index.html') for name in tarfile.open(sdist).getnames()), sdist
+          for shipped in ('delphi_code/web/index.html', 'delphi_code/web/third-party-licenses.txt'):
+              assert shipped in zipfile.ZipFile(wheel).namelist(), (wheel, shipped)
+              assert any(name.endswith(f'/{shipped}') for name in tarfile.open(sdist).getnames()), (sdist, shipped)
           PY
       - uses: actions/upload-artifact@v7
         with:

@@ -1,6 +1,6 @@
 # Delphi Code
 
-Offline semantic code search for agents. Delphi Code is a small Python CLI that indexes local source trees with a local embedding model and answers natural-language queries with JSON for agents and readable text in a terminal. No daemon, server, account, or cloud embedding provider.
+Offline semantic code search for agents. Delphi Code is a small Python CLI that indexes local source trees with a local embedding model and answers natural-language queries with JSON for agents and readable text in a terminal. No background daemon, account, or cloud embedding provider.
 
 ## Quick start
 
@@ -120,8 +120,9 @@ delphi-code list --indexed
 | `connect [AGENT ...]` | Adds the MCP server to installed agents' configs, never replacing an existing entry. | |
 | `disconnect [AGENT ...]` | Removes what `connect` added. | |
 | `mcp` | Serves the commands above, except `connect` and `disconnect`, as MCP tools over stdio, with the same names and options. | |
+| `ui` | Opens the web UI in your browser to search, manage projects, pick repositories from your account, and check the setup. It runs on 127.0.0.1 until Ctrl-C; running it again reuses the open one. | `--no-browser` |
 
-Every command accepts `--json` and `--help`. `--path`, `--language`, and `--ignore` can be repeated.
+Every command accepts `--help`, and all but `mcp` and `ui` accept `--json`. `--path`, `--language`, and `--ignore` can be repeated.
 
 ### Selecting a project
 

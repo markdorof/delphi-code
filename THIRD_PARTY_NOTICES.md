@@ -1,12 +1,16 @@
 # Third-party notices and provenance
 
-Delphi Code's original application code uses the repository's Apache-2.0 license. It was implemented independently after inspecting a local reference implementation's behavior and library integration; no reference source, documentation, or branding is included. Its Python package declares dependencies but does not bundle their code, a Python interpreter, or model weights. Dependencies and models retain their own licenses and notices in their separately installed distributions.
+Delphi Code's original application code uses the repository's Apache-2.0 license. It was implemented independently after inspecting a local reference implementation's behavior and library integration; no reference source, documentation, or branding is included. Its Python package declares its Python dependencies but does not bundle their code, a Python interpreter, or model weights; those retain their own licenses and notices in their separately installed distributions. The package does bundle the compiled web UI, described below.
 
 ## Dependencies
 
 The tested direct dependencies are CocoIndex 1.0.24 (Apache-2.0), sqlite-vec 0.1.9 (MIT or Apache-2.0), SentenceTransformers 6.1.0 (Apache-2.0), NumPy 2.5.3 (BSD and bundled component notices), pathspec 0.12.1 (MPL-2.0), questionary 2.1.1 (MIT), FastAPI 0.141.1 (MIT), and Uvicorn 0.54.0 (BSD-3-Clause). They were installed from PyPI without modification. Exact transitive dependency versions are recorded in `requirements-lock.txt`; this version freeze does not authenticate wheel contents.
 
 For a release that bundles dependencies, collect their licenses and notices from the actual release environment with `scripts/collect_notices.py`. During online preparation, `scripts/prepare_notices.py` retrieves supplemental upstream license texts omitted from the tested wheels. Both write to `build/third_party/`. Review the collection against the release contents, include required native-library and interpreter notices, and meet applicable source-availability obligations. The generated collection is excluded from the application package and source repository.
+
+## Web UI
+
+The package's `delphi_code/web/` directory holds the web UI compiled from `web/`, which bundles JavaScript and CSS from React, React DOM, TanStack Router and Query, Radix UI, cmdk, Floating UI, Lucide, Shiki with its themes and grammars, openapi-fetch, cn, class-variance-authority, Tailwind CSS, tw-animate-css, and their dependencies. All are under MIT, ISC, Apache-2.0, or 0BSD licenses. Each build writes `delphi_code/web/third-party-licenses.txt` with every bundled package's name, version, declared license, and the license and notice files it ships; the page serves it at `/third-party-licenses.txt`. Exact versions are recorded in `web/pnpm-lock.yaml`.
 
 ## Test model
 
