@@ -1,10 +1,9 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
-from starlette.responses import Response
 
 from ...services.application import DelphiCode
-from ..progress_stream import STREAMED_RESPONSE, streamed_write
+from ..progress_stream import NdjsonResponse, streamed_responses, streamed_write
 from ..request_context import delphi_code_of
 from ..request_models import AddRequest, IndexRequest
 from ..response_models import (
@@ -31,19 +30,25 @@ def status(delphi_code: Annotated[DelphiCode, Depends(delphi_code_of)], project:
     return delphi_code.status(project).to_json()
 
 
-@changes_projects.post("/api/projects/index", response_class=Response, responses=STREAMED_RESPONSE)
+@changes_projects.post(
+    "/api/projects/index", response_class=NdjsonResponse, responses=streamed_responses(IndexingOutcomeResponse)
+)
 def index(request: Request, delphi_code: Annotated[DelphiCode, Depends(delphi_code_of)], body: IndexRequest):
     return streamed_write(
         request, lambda progress: delphi_code.index(body.project, body.selection(), progress), IndexingOutcomeResponse
     )
 
 
-@changes_projects.post("/api/projects/sync", response_class=Response, responses=STREAMED_RESPONSE)
+@changes_projects.post(
+    "/api/projects/sync", response_class=NdjsonResponse, responses=streamed_responses(SyncReportResponse)
+)
 def sync(request: Request, delphi_code: Annotated[DelphiCode, Depends(delphi_code_of)]):
     return streamed_write(request, delphi_code.sync, SyncReportResponse)
 
 
-@changes_projects.post("/api/projects", response_class=Response, responses=STREAMED_RESPONSE)
+@changes_projects.post(
+    "/api/projects", response_class=NdjsonResponse, responses=streamed_responses(TrackingReportResponse)
+)
 def add(request: Request, delphi_code: Annotated[DelphiCode, Depends(delphi_code_of)], body: AddRequest):
     return streamed_write(
         request,

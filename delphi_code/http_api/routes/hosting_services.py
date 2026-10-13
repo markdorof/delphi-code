@@ -1,10 +1,9 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
-from starlette.responses import Response
 
 from ...services.application import DelphiCode
-from ..progress_stream import STREAMED_RESPONSE, streamed_write
+from ..progress_stream import NdjsonResponse, streamed_responses, streamed_write
 from ..request_context import delphi_code_of
 from ..request_models import PickedChangesRequest
 from ..response_models import HostingServicesResponse, OwnersResponse, RepositoriesResponse, TrackingReportResponse
@@ -32,7 +31,9 @@ def repositories(delphi_code: Annotated[DelphiCode, Depends(delphi_code_of)], do
     return {"repositories": [repository.to_json() for repository in listed]}
 
 
-@changes_tracking.post("/api/projects/picked", response_class=Response, responses=STREAMED_RESPONSE)
+@changes_tracking.post(
+    "/api/projects/picked", response_class=NdjsonResponse, responses=streamed_responses(TrackingReportResponse)
+)
 def apply_picked_changes(
     request: Request, delphi_code: Annotated[DelphiCode, Depends(delphi_code_of)], body: PickedChangesRequest
 ):

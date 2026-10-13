@@ -23,6 +23,7 @@ The aim is code a newcomer can read top to bottom without a guide.
 | Front end: CLI | `cli/` | `main.py` (argparse; picks the port implementations, calls one controller, writes its data as JSON or its views as text), `controllers/` (one function per command), `terminal/` (everything drawn on or asked in the terminal) |
 | Front end: MCP | `mcp_server/` | `tools.py` defines one MCP tool per command except `connect` and `disconnect`, calls services directly and returns their data; `stdio_protocol.py` is JSON-RPC over stdio, no SDK |
 | Front end: HTTP | `http_api/` | `app.py` (`create_app(delphi_code, settings)`), one router per resource in `routes/` (`hosting_services.py` lets a browser drive the repository picker itself: list hosting services, owners and repositories, then post the picked changes), `response_models.py` (pydantic mirrors of each result's `to_json()`, so OpenAPI describes them), `failures.py` (`FailureKind` to HTTP status), `security.py` (token, and same-origin for writes), `progress_stream.py` (writes run one at a time in a worker thread and stream `Progress` events as NDJSON, ending with `done` or `failed`; a failure before the first event is an ordinary error response); `server.py` (`LoopbackServer` binds 127.0.0.1 itself and runs uvicorn on that socket); `web_ui_files.py` serves the built web UI from `delphi_code/web/` without a token, answers client routes with its `index.html`, and adds the page's security headers; `web_ui_launch.py` (`serve`, which `delphi-code ui` runs: reuses a live server named in `web-ui-server.json` in the data directory, or starts one with a new token, records it there readable only by the owner, and removes the record on exit); FastAPI, pydantic and uvicorn are imported only here |
+| Front end: web UI | `web/` (source), built into `delphi_code/web/` | a React and TypeScript single-page app served by `http_api`; it talks to the core only through `/api`. `src/api/` holds the client generated from the API's OpenAPI schema (`schema.d.ts`), the token handoff, failures, and `runStreamedWrite` for NDJSON writes. Routes live in `src/routes/` |
 | Services | `services/` | what a command does; each returns one typed result from `domain/`, the same for every front end. `application.py` (`DelphiCode`) is the one entrance: it holds the store, registry and model location and has one method per use case. The modules behind it: `indexing`, `searching`, `tracking`, `remote_repositories`, `project_catalog`, `model_installation`, `diagnostics`, `agent_connections`, plus the `Progress` port |
 | Infrastructure | `infrastructure/` | disk, git, network and libraries: `store`, `registry`, `model`, `vector_index`, `files`, `sources`, `hosts`, `project_identity`, `model_assets`, `paths`, `offline`, `agent_configs` (each agent's MCP config file or CLI) |
 | Domain | `domain/` | pure rules with no I/O: `errors`, `keys`, `manifest`, `selection`, `tracking_changes`, `agent_connection`, the results services return (`search_hits`, `indexing_outcomes`, `tracking_report`, `project_listing`, `index_state`, `diagnostics`), and `hosting_services` (`HostingService`, `Owner`, `Repository`: what front ends see of Bitbucket and GitHub, while `infrastructure/hosts.py` keeps the API clients) |
@@ -70,6 +71,19 @@ bash scripts/test_offline.sh
 Set `DELPHI_CODE_TEST_MODEL` to the actual model location; a model prepared inside the checkout can use `"$PWD/.models/all-MiniLM-L6-v2"`. Both scripts accept `DELPHI_CODE_PYTHON` to select a different Python executable.
 
 The `tests/offline` suite launches real CLI subprocesses under OS network denial, uses an empty Hugging Face cache, and records Python DNS/connect attempts before runtime imports. It covers offline model import and reuse, missing models, doctor, actual retrieval, same-content reuse, preserved-mtime edits, deletion, ignore negation, filters, line numbers, empty results, and JSON output and exit codes. A separate socket probe verifies that the OS blocks networking. The directory is intentionally outside regular unittest discovery, so run both scripts for the full check. Neither suite tests live model downloads; CI does (see below).
+
+## Web UI
+
+The web UI lives in `web/` and needs Node 24 (`web/.nvmrc`) and pnpm through Corepack (`corepack pnpm …`). `pnpm build` writes the page into `delphi_code/web/`, which is not committed: build it before installing from a checkout, or `delphi-code ui` shows how to.
+
+```sh
+cd web
+corepack pnpm install
+corepack pnpm check && corepack pnpm typecheck && corepack pnpm test
+corepack pnpm build
+```
+
+For development, run `delphi-code ui --no-browser`, then `DELPHI_CODE_API_URL=http://127.0.0.1:PORT corepack pnpm dev` and open Vite's address with the printed `#token=…`. Vite proxies `/api` to the server and presents the server's own origin, so writes pass the same-origin check. After changing a route or response model, run `corepack pnpm api:generate` and commit `src/api/schema.d.ts`; streamed writes declare their final result with `streamed_responses(ResultModel)` so the client knows it.
 
 ## Claude Code plugin
 

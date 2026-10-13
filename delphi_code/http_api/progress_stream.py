@@ -23,7 +23,16 @@ STREAM_DESCRIPTION = (
     'Newline-delimited JSON: one object per progress event ({"event": ...}), then a last line that is either '
     '{"done": RESULT} or {"failed": ERROR, "data": ...}. A failure before the first event is an ordinary error response.'
 )
-STREAMED_RESPONSE: dict[int | str, dict[str, Any]] = {200: {"description": STREAM_DESCRIPTION, "content": {NDJSON: {}}}}
+
+
+class NdjsonResponse(Response):
+    media_type = NDJSON
+
+
+def streamed_responses(result_model: type[BaseModel]) -> dict[int | str, dict[str, Any]]:
+    return {200: {"description": STREAM_DESCRIPTION, "model": result_model}}
+
+
 logger = logging.getLogger(__name__)
 
 

@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+import re
 import tempfile
 import threading
 import unittest
@@ -80,10 +81,27 @@ class HttpApi(unittest.TestCase):
             with self.subTest(schema=name):
                 self.assertIn(name, schemas)
 
-    def test_no_page_loads_scripts_from_a_cdn(self):
-        for path in ("/docs", "/redoc"):
+    def test_openapi_describes_what_each_stream_ends_with(self):
+        paths = self.client.get("/openapi.json").json()["paths"]
+        for path, method, result in (
+            ("/api/projects/index", "post", "IndexingOutcomeResponse"),
+            ("/api/projects/sync", "post", "SyncReportResponse"),
+            ("/api/projects", "post", "TrackingReportResponse"),
+            ("/api/projects/picked", "post", "TrackingReportResponse"),
+            ("/api/setup", "post", "ModelSetupResponse"),
+        ):
             with self.subTest(path=path):
-                self.assertNotIn("<script", self.client.get(path).text)
+                content = paths[path][method]["responses"]["200"]["content"]
+                self.assertEqual(list(content), [NDJSON])
+                self.assertEqual(content[NDJSON]["schema"]["$ref"], f"#/components/schemas/{result}")
+
+    def test_no_page_loads_scripts_from_a_cdn(self):
+        for path in ("/", "/docs", "/redoc"):
+            with self.subTest(path=path):
+                page = self.client.get(path).text
+                self.assertNotIn("swagger", page.lower())
+                for script in re.findall(r"<script[^>]*\bsrc=\"([^\"]+)\"", page):
+                    self.assertTrue(script.startswith("/") and not script.startswith("//"), script)
 
     def stream_lines(self, response) -> list[dict]:
         self.assertEqual(response.status_code, 200, response.text)

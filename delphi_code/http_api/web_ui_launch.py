@@ -2,6 +2,8 @@ from collections.abc import Callable
 import logging
 import os
 import secrets
+import threading
+import time
 from urllib.request import Request, urlopen
 
 from ..infrastructure.web_ui_server_record import WebUiServerRecord, WebUiServerRecordFile
@@ -12,6 +14,7 @@ from .settings import ApiSettings
 
 TOKEN_BYTES = 32
 LIVENESS_CHECK_SECONDS = 2
+STARTUP_POLL_SECONDS = 0.02
 logger = logging.getLogger(__name__)
 
 
@@ -27,11 +30,18 @@ def serve(page_ready: Callable[[str, bool], None]):
     record = WebUiServerRecord(os.getpid(), server.url, settings.token)
     record_file.write(record)
     logger.info("web ui served at %s", server.url)
+    showing_page = threading.Thread(target=_show_page_once_started, args=(server, page_ready, record), daemon=True)
     try:
-        page_ready(_page_url(record), False)
+        showing_page.start()
         server.run()
     finally:
         record_file.remove(record)
+
+
+def _show_page_once_started(server: LoopbackServer, page_ready: Callable[[str, bool], None], record: WebUiServerRecord):
+    while not server.started:
+        time.sleep(STARTUP_POLL_SECONDS)
+    page_ready(_page_url(record), False)
 
 
 def _page_url(record: WebUiServerRecord) -> str:
