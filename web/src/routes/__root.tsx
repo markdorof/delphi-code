@@ -10,6 +10,7 @@ export interface RouterContext {
 const NAVIGATION = [
   { to: "/", label: "Search" },
   { to: "/projects", label: "Projects" },
+  { to: "/setup", label: "Setup" },
 ] as const;
 
 export const Route = createRootRouteWithContext<RouterContext>()({

@@ -8,16 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-const EVERY_PROJECT_LABEL = "All indexed projects";
-
 export function ProjectPicker({
   id,
   projectKey,
   onChange,
+  noProjectLabel,
 }: {
   id: string;
   projectKey: string | undefined;
   onChange: (projectKey: string | undefined) => void;
+  noProjectLabel: string;
 }) {
   const { client } = useApiConnection();
   const [open, setOpen] = useState(false);
@@ -36,7 +36,7 @@ export function ProjectPicker({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button id={id} variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between">
-          <span className="truncate">{projectKey ?? EVERY_PROJECT_LABEL}</span>
+          <span className="truncate">{projectKey ?? noProjectLabel}</span>
           <ChevronsUpDownIcon className="opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -48,9 +48,9 @@ export function ProjectPicker({
               {indexedProjects.isPending ? "Loading projects…" : "No indexed project matches."}
             </CommandEmpty>
             <CommandGroup>
-              <CommandItem value={EVERY_PROJECT_LABEL} onSelect={() => choose(undefined)}>
+              <CommandItem value={noProjectLabel} onSelect={() => choose(undefined)}>
                 <CheckIcon className={cn(projectKey === undefined ? "opacity-100" : "opacity-0")} />
-                {EVERY_PROJECT_LABEL}
+                {noProjectLabel}
               </CommandItem>
               {indexedProjects.data?.map((project) => (
                 <CommandItem key={project.key} value={project.key} onSelect={() => choose(project.key)}>

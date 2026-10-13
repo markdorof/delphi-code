@@ -53,6 +53,7 @@ export function SearchForm({
               id={`${ids}-project`}
               projectKey={draft.project}
               onChange={(project) => changeDraft("project", project)}
+              noProjectLabel="All indexed projects"
             />
           </div>
           <div className="grid gap-1.5">
