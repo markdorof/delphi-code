@@ -23,10 +23,3 @@ export function searchFiltersFromUrl(search: Record<string, unknown>): SearchFil
   }
   return filters;
 }
-
-export function commaSeparatedValues(text: string | undefined): string[] {
-  return (text ?? "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-}

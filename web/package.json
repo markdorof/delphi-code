@@ -14,8 +14,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "api:export": "${DELPHI_CODE_PYTHON:-$(dirname \"$PWD\")/.venv/bin/python} ../scripts/export_openapi.py > openapi.json",
-    "api:types": "openapi-typescript openapi.json --output src/api/schema.d.ts",
-    "api:generate": "${DELPHI_CODE_PYTHON:-$(dirname \"$PWD\")/.venv/bin/python} ../scripts/export_openapi.py > openapi.json && openapi-typescript openapi.json --output src/api/schema.d.ts",
+    "api:types": "openapi-typescript openapi.json --default-non-nullable false --output src/api/schema.d.ts",
+    "api:generate": "${DELPHI_CODE_PYTHON:-$(dirname \"$PWD\")/.venv/bin/python} ../scripts/export_openapi.py > openapi.json && openapi-typescript openapi.json --default-non-nullable false --output src/api/schema.d.ts",
     "e2e": "playwright test"
   },
   "dependencies": {

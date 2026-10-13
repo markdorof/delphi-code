@@ -9,3 +9,11 @@ export function serverTokenFromPageAddress(location: Location, history: History,
   }
   return storage.getItem(STORED_TOKEN_KEY);
 }
+
+export function reloadWhenTokenArrives(window: Window): void {
+  window.addEventListener("hashchange", () => {
+    if (TOKEN_IN_ADDRESS.test(window.location.hash)) {
+      window.location.reload();
+    }
+  });
+}

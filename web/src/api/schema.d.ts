@@ -214,13 +214,13 @@ export interface components {
              * @description Skip files larger than this
              * @default 1048576
              */
-            max_bytes: number;
+            max_bytes?: number;
             /**
              * No Sync
              * @description Only update the registry
              * @default false
              */
-            no_sync: boolean;
+            no_sync?: boolean;
             /**
              * Path
              * @description Project-relative globs, such as src/*
@@ -311,32 +311,32 @@ export interface components {
              * Num Adds
              * @default 0
              */
-            num_adds: number;
+            num_adds?: number;
             /**
              * Num Deletes
              * @default 0
              */
-            num_deletes: number;
+            num_deletes?: number;
             /**
              * Num Errors
              * @default 0
              */
-            num_errors: number;
+            num_errors?: number;
             /**
              * Num Execution Starts
              * @default 0
              */
-            num_execution_starts: number;
+            num_execution_starts?: number;
             /**
              * Num Reprocesses
              * @default 0
              */
-            num_reprocesses: number;
+            num_reprocesses?: number;
             /**
              * Num Unchanged
              * @default 0
              */
-            num_unchanged: number;
+            num_unchanged?: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -376,7 +376,7 @@ export interface components {
              * @description Skip files larger than this
              * @default 1048576
              */
-            max_bytes: number;
+            max_bytes?: number;
             /**
              * Path
              * @description Project-relative globs, such as src/*
@@ -418,7 +418,7 @@ export interface components {
              * Ready
              * @default false
              */
-            ready: boolean;
+            ready?: boolean;
             /** Schema Version */
             schema_version?: number | null;
             /** Source */
@@ -518,13 +518,13 @@ export interface components {
              * @description Skip files larger than this
              * @default 1048576
              */
-            max_bytes: number;
+            max_bytes?: number;
             /**
              * No Sync
              * @description Only update the registry
              * @default false
              */
-            no_sync: boolean;
+            no_sync?: boolean;
             /**
              * Path
              * @description Project-relative globs, such as src/*

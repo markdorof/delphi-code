@@ -2,8 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { dataOrFailure } from "@/api/apiClient";
 import { useApiConnection } from "@/api/apiContext";
 import { FailureMessage } from "@/components/FailureMessage";
+import { commaSeparatedValues } from "@/forms/commaSeparatedValues";
 import { SearchHitCard } from "./SearchHitCard";
-import { commaSeparatedValues, DEFAULT_SEARCH_LIMIT, type SearchFilters } from "./searchFilters";
+import { DEFAULT_SEARCH_LIMIT, type SearchFilters } from "./searchFilters";
 
 export function SearchResults({ filters }: { filters: SearchFilters }) {
   const { client } = useApiConnection();

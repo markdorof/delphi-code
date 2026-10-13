@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import shutil
 import tempfile
 from unittest.mock import patch
 
@@ -12,6 +13,8 @@ from delphi_code.infrastructure.model import LocalModel
 
 E2E_PORT = int(os.environ.get("DELPHI_CODE_E2E_PORT", "8765"))
 E2E_TOKEN = os.environ.get("DELPHI_CODE_E2E_TOKEN", "e2e-token")
+ADDABLE_PROJECT = os.environ.get("DELPHI_CODE_E2E_ADDABLE_PROJECT")
+ADDABLE_FILES = {"retry.py": "def retry(call, attempts=3):\n    return call()\n"}
 SEEDED_FILES = {
     "auth.py": (
         "def check_password(user, password):\n"
@@ -28,13 +31,16 @@ def main():
         os.environ["DELPHI_CODE_REGISTRY"] = str(root / "repos.toml")
         with patch.object(LocalModel, "inspect", return_value=FakeModel(root / "model")):
             delphi_code = application(str(root / "model"))
-            delphi_code.index(str(_seeded_project(root / "seeded-project")), FileSelection())
+            delphi_code.index(str(_project_with(root / "seeded-project", SEEDED_FILES)), FileSelection())
+            if ADDABLE_PROJECT:
+                shutil.rmtree(ADDABLE_PROJECT, ignore_errors=True)
+                _project_with(Path(ADDABLE_PROJECT), ADDABLE_FILES)
             LoopbackServer(delphi_code, ApiSettings(E2E_TOKEN), port=E2E_PORT).run()
 
 
-def _seeded_project(directory: Path) -> Path:
+def _project_with(directory: Path, files: dict[str, str]) -> Path:
     directory.mkdir()
-    for name, text in SEEDED_FILES.items():
+    for name, text in files.items():
         (directory / name).write_text(text)
     return directory
 
