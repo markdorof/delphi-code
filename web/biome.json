@@ -1,7 +1,14 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["**", "!src/routeTree.gen.ts", "!src/api/schema.d.ts"]
+    "includes": [
+      "**",
+      "!src/routeTree.gen.ts",
+      "!src/api/schema.d.ts",
+      "!openapi.json",
+      "!test-results",
+      "!playwright-report"
+    ]
   },
   "formatter": {
     "indentStyle": "space",

@@ -224,3 +224,5 @@ __marimo__/
 .python/
 delphi_code/web/
 node_modules/
+web/test-results/
+web/playwright-report/

@@ -2,6 +2,8 @@ import json
 import os
 from pathlib import Path
 import re
+import subprocess
+import sys
 import tempfile
 import threading
 import unittest
@@ -24,6 +26,8 @@ from delphi_code.services.application import DelphiCode
 TOKEN = "http-api-test-token"
 ACME = [Repository("bitbucket.org", "acme", "api", "Public API", False)]
 AUTHORIZED = {"Authorization": f"Bearer {TOKEN}"}
+REPOSITORY = Path(__file__).resolve().parent.parent
+COMMITTED_OPENAPI_SCHEMA = REPOSITORY / "web" / "openapi.json"
 
 
 class HttpApi(unittest.TestCase):
@@ -80,6 +84,19 @@ class HttpApi(unittest.TestCase):
         for name in ("ProjectSearchHitsResponse", "CrossProjectSearchHitsResponse", "ProjectListingResponse"):
             with self.subTest(schema=name):
                 self.assertIn(name, schemas)
+
+    def test_the_web_ui_was_generated_from_the_current_schema(self):
+        exported = subprocess.run(
+            [sys.executable, str(REPOSITORY / "scripts" / "export_openapi.py")],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        self.assertEqual(
+            json.loads(exported.stdout),
+            json.loads(COMMITTED_OPENAPI_SCHEMA.read_text()),
+            "The API changed: run `corepack pnpm api:generate` in web/ and commit the result",
+        )
 
     def test_openapi_describes_what_each_stream_ends_with(self):
         paths = self.client.get("/openapi.json").json()["paths"]

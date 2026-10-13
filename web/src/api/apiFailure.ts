@@ -1,4 +1,4 @@
-wexport interface FailureBody {
+export interface FailureBody {
   error: { code: string; message: string };
   data?: unknown;
 }

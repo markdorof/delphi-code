@@ -83,7 +83,9 @@ corepack pnpm check && corepack pnpm typecheck && corepack pnpm test
 corepack pnpm build
 ```
 
-For development, run `delphi-code ui --no-browser`, then `DELPHI_CODE_API_URL=http://127.0.0.1:PORT corepack pnpm dev` and open Vite's address with the printed `#token=…`. Vite proxies `/api` to the server and presents the server's own origin, so writes pass the same-origin check. After changing a route or response model, run `corepack pnpm api:generate` and commit `src/api/schema.d.ts`; streamed writes declare their final result with `streamed_responses(ResultModel)` so the client knows it.
+For development, run `delphi-code ui --no-browser`, then `DELPHI_CODE_API_URL=http://127.0.0.1:PORT corepack pnpm dev` and open Vite's address with the printed `#token=…`. Vite proxies `/api` to the server and presents the server's own origin, so writes pass the same-origin check. After changing a route or response model, run `corepack pnpm api:generate` and commit `openapi.json` and `src/api/schema.d.ts`; a Python test fails while `openapi.json` is stale, and CI fails while `schema.d.ts` or `src/routeTree.gen.ts` differ from what the tools generate. Streamed writes declare their final result with `streamed_responses(ResultModel)` so the client knows it.
+
+Browser tests run the built page against the real server: `corepack pnpm exec playwright install chromium` once, then `corepack pnpm build && corepack pnpm e2e`. `tests/e2e_server.py` serves a temporary data directory with one indexed project and the fake model. CI runs them against the installed wheel.
 
 ## Claude Code plugin
 

@@ -13,7 +13,10 @@
     "format": "biome check --write .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "api:generate": "${DELPHI_CODE_PYTHON:-$(dirname \"$PWD\")/.venv/bin/python} ../scripts/export_openapi.py | openapi-typescript --output src/api/schema.d.ts"
+    "api:export": "${DELPHI_CODE_PYTHON:-$(dirname \"$PWD\")/.venv/bin/python} ../scripts/export_openapi.py > openapi.json",
+    "api:types": "openapi-typescript openapi.json --output src/api/schema.d.ts",
+    "api:generate": "${DELPHI_CODE_PYTHON:-$(dirname \"$PWD\")/.venv/bin/python} ../scripts/export_openapi.py > openapi.json && openapi-typescript openapi.json --output src/api/schema.d.ts",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@tanstack/react-query": "5.104.0",
@@ -26,6 +29,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "4.3.3",
     "@tanstack/router-plugin": "1.168.41",
     "@testing-library/dom": "10.4.2",
