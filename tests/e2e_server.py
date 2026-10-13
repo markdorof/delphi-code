@@ -12,7 +12,13 @@ from delphi_code.infrastructure.model import LocalModel
 
 E2E_PORT = int(os.environ.get("DELPHI_CODE_E2E_PORT", "8765"))
 E2E_TOKEN = os.environ.get("DELPHI_CODE_E2E_TOKEN", "e2e-token")
-SEEDED_FILES = {"auth.py": "def check_password(user, password):\n    return user.password == password\n"}
+SEEDED_FILES = {
+    "auth.py": (
+        "def check_password(user, password):\n"
+        f"    # {'A comment long enough to overflow a phone-width page. ' * 4}\n"
+        "    return user.password == password\n"
+    )
+}
 
 
 def main():

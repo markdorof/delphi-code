@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
@@ -11,6 +12,14 @@
   --primary: oklch(0.45 0.15 265);
   --primary-foreground: oklch(0.99 0 0);
   --destructive: oklch(0.55 0.2 25);
+  --secondary: oklch(0.96 0.005 260);
+  --secondary-foreground: oklch(0.2 0.01 260);
+  --accent: oklch(0.95 0.01 265);
+  --accent-foreground: oklch(0.2 0.01 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0.01 260);
+  --input: oklch(0.88 0.005 260);
+  --ring: oklch(0.6 0.12 265);
   --radius: 0.5rem;
 }
 
@@ -24,6 +33,14 @@
     --primary: oklch(0.72 0.13 265);
     --primary-foreground: oklch(0.17 0.01 260);
     --destructive: oklch(0.65 0.19 25);
+    --secondary: oklch(0.25 0.01 260);
+    --secondary-foreground: oklch(0.94 0.005 260);
+    --accent: oklch(0.27 0.02 265);
+    --accent-foreground: oklch(0.94 0.005 260);
+    --popover: oklch(0.2 0.01 260);
+    --popover-foreground: oklch(0.94 0.005 260);
+    --input: oklch(0.34 0.01 260);
+    --ring: oklch(0.65 0.12 265);
   }
 }
 
@@ -36,6 +53,14 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-destructive: var(--destructive);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
@@ -47,5 +72,15 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+  }
+}
+
+.highlighted-snippet span[style] {
+  color: var(--shiki-light);
+}
+
+@media (prefers-color-scheme: dark) {
+  .highlighted-snippet span[style] {
+    color: var(--shiki-dark);
   }
 }

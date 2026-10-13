@@ -1,54 +1,73 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
-import { createApiClient } from "@/api/apiClient";
-import { ApiConnectionProvider } from "@/api/apiContext";
-import { apiServer, SERVER_TOKEN } from "@/test/apiServer";
-import { ProjectsOverview } from "./index";
+import { apiServer } from "@/test/apiServer";
+import { renderAppAt, TEST_API_ORIGIN } from "@/test/renderAppAt";
 
-function renderOverview() {
-  const connection = { client: createApiClient(SERVER_TOKEN, "http://127.0.0.1:8123"), serverToken: SERVER_TOKEN };
-  render(
-    <ApiConnectionProvider connection={connection}>
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <ProjectsOverview />
-      </QueryClientProvider>
-    </ApiConnectionProvider>,
-  );
-}
-
-const LISTED = {
-  key: "github.com/acme/api",
-  tracked: true,
-  source: "github.com/acme/api",
-  project: "api",
-  index_directory: "/indexes/1",
-  ready: true,
-  indexed_at: "2026-10-12T10:00:00Z",
+const HIT = {
+  path: "src/auth.py",
+  language: "text",
+  text: "def check_password(user, password):\n    return False\n",
+  start_line: 12,
+  end_line: 13,
+  distance: 0.4,
+  score: 0.61,
 };
 
-describe("ProjectsOverview", () => {
-  it("lists projects with their index state", async () => {
-    apiServer.use(
-      http.get("http://127.0.0.1:8123/api/projects", () =>
-        HttpResponse.json({ registry: "/repos.toml", repos: [LISTED] }),
-      ),
-    );
-    renderOverview();
+function answerSearches(record: URLSearchParams[] = []) {
+  apiServer.use(
+    http.get(`${TEST_API_ORIGIN}/api/projects`, () => HttpResponse.json({ registry: "/repos.toml", repos: [] })),
+    http.get(`${TEST_API_ORIGIN}/api/search`, ({ request }) => {
+      record.push(new URL(request.url).searchParams);
+      return HttpResponse.json({
+        project: "api",
+        key: "github.com/acme/api",
+        index_directory: "/indexes/1",
+        query: "passwords",
+        results: [HIT],
+      });
+    }),
+  );
+  return record;
+}
 
-    expect(await screen.findByText("github.com/acme/api")).toBeTruthy();
-    expect(screen.getByText("Indexed")).toBeTruthy();
+describe("the search page", () => {
+  it("searches with the filters in its address", async () => {
+    const searched = answerSearches();
+    renderAppAt("/?q=passwords&project=github.com/acme/api&language=python,%20go&limit=20");
+
+    expect(await screen.findByText("src/auth.py")).toBeTruthy();
+    expect(screen.getByText("1 match in github.com/acme/api")).toBeTruthy();
+    expect(screen.getByText("0.61")).toBeTruthy();
+    const parameters = searched[0];
+    expect(parameters?.get("query")).toBe("passwords");
+    expect(parameters?.get("project")).toBe("github.com/acme/api");
+    expect(parameters?.getAll("language")).toEqual(["python", "go"]);
+    expect(parameters?.get("limit")).toBe("20");
   });
 
-  it("asks for a new link when the token is rejected", async () => {
+  it("puts a submitted query into the address", async () => {
+    answerSearches();
+    const router = renderAppAt("/");
+
+    fireEvent.change(await screen.findByRole("textbox", { name: "What are you looking for?" }), {
+      target: { value: "where are passwords checked" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    await waitFor(() => expect(router.state.location.search).toEqual({ q: "where are passwords checked" }));
+    expect(await screen.findByText("src/auth.py")).toBeTruthy();
+  });
+
+  it("explains failures such as a missing index", async () => {
     apiServer.use(
-      http.get("http://127.0.0.1:8123/api/projects", () =>
-        HttpResponse.json({ error: { code: "unauthorized", message: "Send the token" } }, { status: 401 }),
+      http.get(`${TEST_API_ORIGIN}/api/projects`, () => HttpResponse.json({ registry: "/repos.toml", repos: [] })),
+      http.get(`${TEST_API_ORIGIN}/api/search`, () =>
+        HttpResponse.json({ error: { code: "index_missing", message: "Run index first" } }, { status: 409 }),
       ),
     );
-    renderOverview();
+    renderAppAt("/?q=passwords");
 
-    expect(await screen.findByText("Open Delphi Code from your terminal")).toBeTruthy();
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", "Run index first");
   });
 });

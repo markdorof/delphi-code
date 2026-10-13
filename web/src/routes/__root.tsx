@@ -5,6 +5,11 @@ export interface RouterContext {
   queryClient: QueryClient;
 }
 
+const NAVIGATION = [
+  { to: "/", label: "Search" },
+  { to: "/projects", label: "Projects" },
+] as const;
+
 export const Route = createRootRouteWithContext<RouterContext>()({
   component: AppShell,
 });
@@ -17,6 +22,17 @@ function AppShell() {
           <Link to="/" className="font-semibold">
             Delphi Code
           </Link>
+          {NAVIGATION.map(({ to, label }) => (
+            <Link
+              key={to}
+              to={to}
+              className="text-muted-foreground text-sm hover:text-foreground"
+              activeProps={{ className: "text-foreground" }}
+              activeOptions={{ exact: true, includeSearch: false }}
+            >
+              {label}
+            </Link>
+          ))}
         </nav>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">
