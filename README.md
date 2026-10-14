@@ -92,7 +92,7 @@ delphi-code add                             # pick repos from your Bitbucket/Git
 delphi-code sync                            # update everything tracked
 ```
 
-Tracked projects live in `repos.toml` in the data directory. Remote repos are shallow-cloned to a temp dir on `sync` and skipped when unchanged; `--ref` picks a branch or tag. Only `add` and `sync` use the network.
+Tracked projects live in `repos.toml` in the data directory. Remote repos are shallow-cloned once, then `sync` fetches only new commits and re-embeds only changed files; `--ref` picks a branch or tag. Only `add` and `sync` use the network.
 
 Remote credentials: `GITHUB_TOKEN`/`GH_TOKEN` (or `gh auth token`) for GitHub; `BITBUCKET_APP_PASSWORD` (an API token works) with `BITBUCKET_EMAIL` or `BITBUCKET_USERNAME` for Bitbucket. Otherwise git's stored credentials are used.
 
@@ -114,7 +114,7 @@ delphi-code list --indexed
 | `search QUERY` | Runs a natural-language query. Without `-p`, searches every index. | `-p`, `--path`, `--language`, `--limit` (default 10) |
 | `status` | Reports a project's index state. | `-p` |
 | `add [SOURCE ...]` | Tracks and indexes projects or remote repositories; without sources, picks repositories interactively. | `--ref`, `--no-sync`, `--path`, `--language`, `--ignore`, `--max-bytes` |
-| `sync` | Indexes every tracked project. | |
+| `sync [PROJECT ...]` | Indexes the named tracked projects, or every one. | |
 | `list` | Lists tracked projects and stored indexes. | `--indexed` |
 | `remove NAME` | Stops tracking a project and deletes its index. | `--keep-index` |
 | `connect [AGENT ...]` | Adds the MCP server to installed agents' configs, never replacing an existing entry. | |

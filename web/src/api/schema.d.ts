@@ -700,6 +700,14 @@ export interface components {
             /** Repos */
             repos: (components["schemas"]["ProjectIndexedResponse"] | components["schemas"]["ProjectUpToDateResponse"] | components["schemas"]["ProjectSyncFailedResponse"])[];
         };
+        /** SyncRequest */
+        SyncRequest: {
+            /**
+             * Projects
+             * @description Tracked project paths, keys or names; empty for all
+             */
+            projects?: string[];
+        };
         /** TrackedSourceResponse */
         TrackedSourceResponse: {
             /** Key */
@@ -1061,7 +1069,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SyncRequest"] | null;
+            };
+        };
         responses: {
             /** @description Newline-delimited JSON: one object per progress event ({"event": ...}), then a last line that is either {"done": RESULT} or {"failed": ERROR, "data": ...}. A failure before the first event is an ordinary error response. */
             200: {
@@ -1070,6 +1082,15 @@ export interface operations {
                 };
                 content: {
                     "application/x-ndjson": components["schemas"]["SyncReportResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

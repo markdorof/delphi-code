@@ -1,6 +1,7 @@
 import { InfoIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { timeSince } from "@/formatting/timeSince";
 import { isLocalProject, type ListedProject } from "./listedProject";
@@ -8,12 +9,16 @@ import { isLocalProject, type ListedProject } from "./listedProject";
 export function ProjectsTable({
   projects,
   writeRunning,
+  selectedKeys,
+  onSelect,
   onShowDetails,
   onReindex,
   onRemove,
 }: {
   projects: ListedProject[];
   writeRunning: boolean;
+  selectedKeys: ReadonlySet<string>;
+  onSelect: (project: ListedProject, selected: boolean) => void;
   onShowDetails: (project: ListedProject) => void;
   onReindex: (project: ListedProject) => void;
   onRemove: (project: ListedProject) => void;
@@ -23,6 +28,9 @@ export function ProjectsTable({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-0">
+              <span className="sr-only">Select to sync</span>
+            </TableHead>
             <TableHead>Project</TableHead>
             <TableHead className="hidden sm:table-cell">Index</TableHead>
             <TableHead className="text-right">
@@ -33,6 +41,15 @@ export function ProjectsTable({
         <TableBody>
           {projects.map((project) => (
             <TableRow key={project.key}>
+              <TableCell className="w-0">
+                {project.tracked && (
+                  <Checkbox
+                    aria-label={`Select ${project.key} to sync`}
+                    checked={selectedKeys.has(project.key)}
+                    onCheckedChange={(checked) => onSelect(project, checked === true)}
+                  />
+                )}
+              </TableCell>
               <TableCell className="w-full max-w-0 whitespace-normal">
                 <p className="break-all font-mono text-sm sm:truncate">{project.key}</p>
                 <p className="truncate text-muted-foreground text-xs">

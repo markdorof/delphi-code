@@ -14,7 +14,13 @@ from delphi_code.domain.manifest import Manifest
 from delphi_code.domain.tracking_changes import TrackingChanges
 from delphi_code.infrastructure.hosts import Bitbucket, GitHub
 from delphi_code.infrastructure.registry import Registry
-from delphi_code.infrastructure.sources import GitRemoteSource, LocalSource, source_from_argument, source_from_registry
+from delphi_code.infrastructure.sources import (
+    GitRemoteSource,
+    LocalSource,
+    run_git,
+    source_from_argument,
+    source_from_registry,
+)
 from delphi_code.infrastructure.store import Store
 
 
@@ -163,6 +169,27 @@ class RemoteGitCheckouts(LocalHostWithApiRepository):
                 answers = self.git_call_with_askpass_answers(GitRemoteSource(Bitbucket(), "acme", "api"))[1]
                 self.assertEqual(answers, ["x-bitbucket-api-token-auth\n", "token\n"])
 
+    def test_kept_checkout_fetches_new_commits_in_place(self):
+        source = GitRemoteSource(GitHub(), "acme", "api")
+        kept = self.root / "index/checkout"
+        self.assertFalse(source.is_kept_in(kept))
+        with source.kept_checkout(kept) as first:
+            self.assertEqual(first.directory, kept)
+        (kept / "stray.txt").write_text("left over")
+        git("rm", "-q", "parse.py", cwd=self.work)
+        newer = self.commit("render.py", "def render(page):\n    return page\n")
+        git("push", "-q", "origin", "main", cwd=self.work)
+        with (
+            patch("delphi_code.infrastructure.sources.run_git", wraps=run_git) as called,
+            source.kept_checkout(kept) as second,
+        ):
+            self.assertEqual(second.provenance["commit"], newer)
+            self.assertEqual(sorted(path.name for path in kept.iterdir()), [".git", "render.py"])
+        self.assertNotIn("clone", [call.args[0][0] for call in called.call_args_list])
+        with source.kept_checkout(kept, "v1-annotated") as tagged:
+            self.assertEqual(sorted(path.name for path in kept.iterdir()), [".git", "parse.py"])
+            self.assertEqual(tagged.provenance["ref"], "v1-annotated")
+
     def test_github_checkout_links_to_github(self):
         head = git("rev-parse", "HEAD", cwd=self.work)
         with GitRemoteSource(GitHub(), "acme", "api").checkout() as checkout:
@@ -197,7 +224,7 @@ class RemoteSync(LocalHostWithApiRepository):
         added = self.run_command("add", "git@bitbucket.org:acme/api.git")["repos"][0]
         self.assertEqual((added["key"], added["unchanged"]), ("bitbucket.org/acme/api", False))
         self.assertEqual(Registry().entries()[0].source, "bitbucket.org/acme/api")
-        self.assertFalse(self.checkouts[0].directory.exists())
+        self.assertEqual(self.checkouts[0].directory, Store().get("bitbucket.org/acme/api").remote_checkout_directory)
         self.assertTrue(self.run_command("sync")["repos"][0]["unchanged"])
         self.assertEqual(len(self.checkouts), 1)
         newer = self.commit("more.py", "VALUE = 1\n")

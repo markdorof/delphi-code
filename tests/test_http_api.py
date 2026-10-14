@@ -160,7 +160,7 @@ class HttpApi(unittest.TestCase):
     def test_one_write_at_a_time(self):
         started, release = threading.Event(), threading.Event()
 
-        def slow_sync(self, progress):
+        def slow_sync(self, projects, progress):
             progress.repository_started("p", 1, 1)
             started.set()
             release.wait(10)

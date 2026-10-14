@@ -8,7 +8,7 @@ import { runStreamedWrite } from "./streamedWrite";
 const SYNCED = { repos: [] };
 
 function sync(onProgress: (event: ProgressEvent) => void = () => {}) {
-  return runStreamedWrite({ path: "/api/projects/sync", body: undefined, serverToken: SERVER_TOKEN, onProgress });
+  return runStreamedWrite({ path: "/api/projects/sync", body: {}, serverToken: SERVER_TOKEN, onProgress });
 }
 
 describe("runStreamedWrite", () => {

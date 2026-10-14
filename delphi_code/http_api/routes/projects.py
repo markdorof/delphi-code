@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Request
 from ...services.application import DelphiCode
 from ..progress_stream import NdjsonResponse, streamed_responses, streamed_write
 from ..request_context import delphi_code_of
-from ..request_models import AddRequest, IndexRequest
+from ..request_models import AddRequest, IndexRequest, SyncRequest
 from ..response_models import (
     IndexingOutcomeResponse,
     IndexStateResponse,
@@ -42,8 +42,11 @@ def index(request: Request, delphi_code: Annotated[DelphiCode, Depends(delphi_co
 @changes_projects.post(
     "/api/projects/sync", response_class=NdjsonResponse, responses=streamed_responses(SyncReportResponse)
 )
-def sync(request: Request, delphi_code: Annotated[DelphiCode, Depends(delphi_code_of)]):
-    return streamed_write(request, delphi_code.sync, SyncReportResponse)
+def sync(
+    request: Request, delphi_code: Annotated[DelphiCode, Depends(delphi_code_of)], body: SyncRequest | None = None
+):
+    projects = body.projects if body else []
+    return streamed_write(request, lambda progress: delphi_code.sync(projects, progress), SyncReportResponse)
 
 
 @changes_projects.post(

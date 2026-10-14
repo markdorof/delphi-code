@@ -47,8 +47,8 @@ class DelphiCode:
     def index(self, project: str, selection: FileSelection, progress: Progress = SILENT) -> IndexingOutcome:
         return indexing.index_local_project(self._store, project, selection, self._model_location, progress)
 
-    def sync(self, progress: Progress = SILENT) -> SyncReport:
-        return indexing.sync_tracked(self._store, self._registry, self._model_location, progress)
+    def sync(self, projects: list[str], progress: Progress = SILENT) -> SyncReport:
+        return indexing.sync_tracked(self._store, self._registry, projects, self._model_location, progress)
 
     def add(
         self,
