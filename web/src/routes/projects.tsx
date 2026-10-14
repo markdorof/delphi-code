@@ -7,6 +7,7 @@ import { dataOrFailure } from "@/api/apiClient";
 import { useApiConnection } from "@/api/apiContext";
 import { FailureMessage } from "@/components/FailureMessage";
 import { Button } from "@/components/ui/button";
+import { pluralized } from "@/formatting/pluralized";
 import { AddProjectsDialog } from "@/projects/AddProjectsDialog";
 import type { ListedProject } from "@/projects/listedProject";
 import { ProjectDetailsSheet } from "@/projects/ProjectDetailsSheet";
@@ -27,16 +28,35 @@ export function ProjectsPage() {
   const [detailed, setDetailed] = useState<ListedProject | null>(null);
   const [removing, setRemoving] = useState<ListedProject | null>(null);
   const [lastRemoval, setLastRemoval] = useState<ProjectRemoval | null>(null);
+  const [selectedKeys, setSelectedKeys] = useState<ReadonlySet<string>>(new Set());
   const projects = useQuery({
     queryKey: ["projects"],
     queryFn: async () => dataOrFailure(await client.GET("/api/projects")),
   });
 
-  function syncAll() {
+  const selectedTracked = (projects.data?.repos ?? [])
+    .filter((project) => project.tracked && selectedKeys.has(project.key))
+    .map((project) => project.key);
+
+  function select(project: ListedProject, selected: boolean) {
+    setSelectedKeys((current) => {
+      const next = new Set(current);
+      if (selected) {
+        next.add(project.key);
+      } else {
+        next.delete(project.key);
+      }
+      return next;
+    });
+  }
+
+  function sync() {
     void startWrite({
-      title: "Syncing tracked projects",
+      title: selectedTracked.length
+        ? `Syncing ${pluralized(selectedTracked.length, "project")}`
+        : "Syncing tracked projects",
       path: "/api/projects/sync",
-      body: undefined,
+      body: { projects: selectedTracked },
       summary: syncSummary,
     });
   }
@@ -45,9 +65,9 @@ export function ProjectsPage() {
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
       <header className="flex flex-wrap items-center gap-2">
         <h1 className="flex-1 font-semibold text-lg">Projects</h1>
-        <Button variant="outline" onClick={syncAll} disabled={writeRunning}>
+        <Button variant="outline" onClick={sync} disabled={writeRunning}>
           <RefreshCwIcon />
-          Sync all
+          {selectedTracked.length ? `Sync ${selectedTracked.length} selected` : "Sync all"}
         </Button>
         <Button asChild variant="outline">
           <Link to="/projects/from-account">
@@ -75,6 +95,8 @@ export function ProjectsPage() {
         <ProjectsTable
           projects={projects.data.repos}
           writeRunning={writeRunning}
+          selectedKeys={selectedKeys}
+          onSelect={select}
           onShowDetails={setDetailed}
           onReindex={(project) => void reindex(project)}
           onRemove={(project) => {

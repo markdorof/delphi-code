@@ -28,6 +28,10 @@ class AddRequest(FileSelectionRequest):
     no_sync: bool = Field(False, description="Only update the registry")
 
 
+class SyncRequest(RequestModel):
+    projects: list[str] = Field(default_factory=list, description="Tracked project paths, keys or names; empty for all")
+
+
 class SetupRequest(RequestModel):
     import_from: str | None = Field(None, alias="from", description="Prepared model directory to import")
 

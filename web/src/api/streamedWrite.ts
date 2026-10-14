@@ -17,7 +17,7 @@ export type StreamedWritePath = {
 export type StreamedWriteResult<Path extends StreamedWritePath> = StreamedResultOf<paths[Path]["post"]>;
 
 export type StreamedWriteBody<Path extends StreamedWritePath> = paths[Path]["post"] extends {
-  requestBody: { content: { "application/json": infer Body } };
+  requestBody?: { content: { "application/json": infer Body } };
 }
   ? Body
   : undefined;

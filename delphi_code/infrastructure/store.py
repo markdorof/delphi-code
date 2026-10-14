@@ -137,6 +137,10 @@ class Index:
         return [SearchHit(**row, score=_cosine_similarity_of_unit_vectors(row["distance"])) for row in rows]
 
     @property
+    def remote_checkout_directory(self) -> Path:
+        return self.directory / "checkout"
+
+    @property
     def _manifest_path(self) -> Path:
         return self.directory / "manifest.json"
 

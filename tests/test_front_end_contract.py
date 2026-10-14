@@ -113,6 +113,11 @@ class SameDataFromEveryFrontEnd(unittest.TestCase):
                 ("POST", "/api/projects", {"sources": [project], "no_sync": True}),
             ),
             (["sync"], ("sync", {}), ("POST", "/api/projects/sync", {})),
+            (
+                ["sync", project],
+                ("sync", {"projects": [project]}),
+                ("POST", "/api/projects/sync", {"projects": [project]}),
+            ),
             (["add", project], ("add", {"sources": [project]}), ("POST", "/api/projects", {"sources": [project]})),
             (["list"], ("list", {}), ("GET", "/api/projects", {})),
             (["list", "--indexed"], ("list", {"indexed": True}), ("GET", "/api/projects", {"indexed": "true"})),

@@ -8,6 +8,7 @@ from ..domain.indexing_outcomes import IndexingOutcome, ProjectUpToDate
 class Stage(StrEnum):
     CHECKING_FOR_CHANGES = "checking for changes"
     CLONING = "cloning"
+    FETCHING = "fetching changes"
     READING_FILES = "reading files"
     EMBEDDING = "embedding"
     SAVING = "saving"

@@ -87,6 +87,17 @@ class RegistryCommands(unittest.TestCase):
         self.assertEqual(repos[0]["error"]["code"], "project_missing")
         self.assertEqual([item[0] for item in self.indexed], [one])
 
+    def test_sync_only_the_named_projects(self):
+        one, two, three = self.project("one"), self.project("two"), self.project("three")
+        self.save(Entry(str(one)), Entry(str(two)), Entry(str(three)))
+        synced = self.run_command("sync", "three", str(one))
+        self.assertEqual([repo["key"] for repo in synced["repos"]], [local_key(one), local_key(three)])
+        self.assertEqual([item[0] for item in self.indexed], [one, three])
+        with self.assertRaises(Failure) as raised:
+            self.run_command("sync", "two", "missing")
+        self.assertEqual(raised.exception.code, "project_missing")
+        self.assertEqual(len(self.indexed), 2)
+
     def test_sync_reports_progress_for_each_repository(self):
         one = self.project("one")
         self.save(Entry(str(self.root / "gone")), Entry(str(one)))

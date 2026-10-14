@@ -1,8 +1,10 @@
 from contextlib import contextmanager
+import fcntl
 from functools import cached_property
 import logging
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 from typing import NamedTuple
@@ -72,31 +74,65 @@ class GitRemoteSource:
         revision = revision or self.latest_revision(ref)
         with tempfile.TemporaryDirectory(prefix="delphi-code-checkout-") as temporary:
             directory = Path(temporary) / "repository"
-            self._git(
-                "clone",
-                "--quiet",
-                "--depth",
-                "1",
-                "--single-branch",
-                "--no-tags",
-                "--branch",
-                revision.ref,
-                self.clone_url,
-                str(directory),
-            )
-            commit = self._git("-C", str(directory), "rev-parse", "HEAD").strip()
-            yield Checkout(
-                directory,
-                None,
-                {
-                    "kind": self.host.name.lower(),
-                    "key": self.key,
-                    "url": self.host.web_url(self.owner, self.repository),
-                    "ref": revision.ref,
-                    "commit": commit,
-                    "permalink": self.host.permalink_template(self.owner, self.repository, commit),
-                },
-            )
+            self._clone(revision, directory)
+            yield self._checkout_of(directory, revision)
+
+    def is_kept_in(self, directory):
+        return (directory / ".git").is_dir()
+
+    @contextmanager
+    def kept_checkout(self, directory, ref=None, revision=None):
+        revision = revision or self.latest_revision(ref)
+        with _exclusive_lock(directory.with_name(directory.name + ".lock"), self.key):
+            if self.is_kept_in(directory):
+                self._fetch_into(directory, revision)
+            else:
+                self._clone_into_place(directory, revision)
+            yield self._checkout_of(directory, revision)
+
+    def _clone(self, revision, directory, *options):
+        self._git(
+            "clone",
+            "--quiet",
+            "--depth",
+            "1",
+            "--single-branch",
+            "--no-tags",
+            *options,
+            "--branch",
+            revision.ref,
+            self.clone_url,
+            str(directory),
+        )
+
+    def _clone_into_place(self, directory, revision):
+        partial = directory.with_name(directory.name + ".partial")
+        shutil.rmtree(partial, ignore_errors=True)
+        shutil.rmtree(directory, ignore_errors=True)
+        self._clone(revision, partial, "--config", "core.logAllRefUpdates=false", "--config", "gc.pruneExpire=now")
+        partial.rename(directory)
+
+    def _fetch_into(self, directory, revision):
+        here = ("-C", str(directory))
+        self._git(*here, "fetch", "--quiet", "--depth", "1", "--no-tags", self.clone_url, revision.ref)
+        self._git(*here, "checkout", "--quiet", "--force", "--detach", "FETCH_HEAD")
+        self._git(*here, "clean", "--quiet", "-ffdx")
+        self._git(*here, "gc", "--quiet", "--auto")
+
+    def _checkout_of(self, directory, revision):
+        commit = self._git("-C", str(directory), "rev-parse", "HEAD").strip()
+        return Checkout(
+            directory,
+            None,
+            {
+                "kind": self.host.name.lower(),
+                "key": self.key,
+                "url": self.host.web_url(self.owner, self.repository),
+                "ref": revision.ref,
+                "commit": commit,
+                "permalink": self.host.permalink_template(self.owner, self.repository, commit),
+            },
+        )
 
     def _default_branch_revision(self):
         advertised = self._remote_refs("HEAD")
@@ -134,6 +170,17 @@ class GitRemoteSource:
 
 
 Source = LocalSource | GitRemoteSource
+
+
+@contextmanager
+def _exclusive_lock(path, key):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise Failure("index_busy", f"Another command is updating {key}", FailureKind.BUSY) from exc
+        yield
 
 
 def run_git(args, key, credentials, credentials_hint):

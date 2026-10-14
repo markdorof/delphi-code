@@ -119,9 +119,9 @@ def delphi_code_tools(app: DelphiCode) -> list[McpTool]:
         ),
         _tool(
             "sync",
-            "Index every tracked project; remote repositories are fetched, which needs the network.",
-            {},
-            lambda arguments: _unless_any_project_failed(app.sync()),
+            "Index tracked projects; remote repositories fetch their new commits, which needs the network.",
+            {"projects": _string_list_property("Tracked project paths, keys or names; omit to sync every one")},
+            lambda arguments: _unless_any_project_failed(app.sync(arguments.get("projects", []))),
             USES_THE_NETWORK,
         ),
         _tool(

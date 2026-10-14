@@ -1402,6 +1402,21 @@
         "title": "SyncReportResponse",
         "type": "object"
       },
+      "SyncRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "projects": {
+            "description": "Tracked project paths, keys or names; empty for all",
+            "items": {
+              "type": "string"
+            },
+            "title": "Projects",
+            "type": "array"
+          }
+        },
+        "title": "SyncRequest",
+        "type": "object"
+      },
       "TrackedSourceResponse": {
         "additionalProperties": false,
         "properties": {
@@ -1942,6 +1957,23 @@
     "/api/projects/sync": {
       "post": {
         "operationId": "sync_api_projects_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SyncRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -1953,6 +1985,16 @@
               }
             },
             "description": "Newline-delimited JSON: one object per progress event ({\"event\": ...}), then a last line that is either {\"done\": RESULT} or {\"failed\": ERROR, \"data\": ...}. A failure before the first event is an ordinary error response."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Sync"

@@ -80,6 +80,24 @@ describe("the projects page", () => {
     });
   });
 
+  it("syncs only the selected projects", async () => {
+    answerProjects([LOCAL, REMOTE, { ...REMOTE, key: "github.com/acme/old", tracked: false }]);
+    let sentBody: unknown;
+    apiServer.use(
+      http.post("/api/projects/sync", async ({ request }) => {
+        sentBody = await request.json();
+        return ndjson([{ done: { registry: "/repos.toml", repos: [] } }]);
+      }),
+    );
+    renderAppAt("/projects");
+
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Select github.com/acme/web to sync" }));
+    expect(screen.queryByRole("checkbox", { name: "Select github.com/acme/old to sync" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Sync 1 selected" }));
+
+    await waitFor(() => expect(sentBody).toEqual({ projects: [REMOTE.key] }));
+  });
+
   it("explains that another write is already running", async () => {
     answerProjects();
     apiServer.use(

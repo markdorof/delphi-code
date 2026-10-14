@@ -5,10 +5,12 @@ import logging
 
 from ..domain.errors import Failure, FailureKind
 from ..domain.indexing_outcomes import IndexingOutcome, ProjectUpToDate, SyncedProject, SyncReport
+from ..domain.keys import match_key
 from ..domain.manifest import Manifest
 from ..domain.selection import FileSelection
 from ..infrastructure.model import LocalModel
 from ..infrastructure.offline import without_network
+from ..infrastructure.project_identity import project_key
 from ..infrastructure.registry import Entry, Registry
 from ..infrastructure.sources import Checkout, GitRemoteSource
 from ..infrastructure.store import Store
@@ -83,8 +85,23 @@ def index_checkout(
     )
 
 
-def sync_tracked(store: Store, registry: Registry, model_location: str, progress: Progress = SILENT) -> SyncReport:
-    return sync(store, registry, registry.entries(), model_location, progress)
+def sync_tracked(
+    store: Store, registry: Registry, names: list[str], model_location: str, progress: Progress = SILENT
+) -> SyncReport:
+    entries = registry.entries()
+    return sync(store, registry, _entries_named(entries, names) if names else entries, model_location, progress)
+
+
+def _entries_named(entries: list[Entry], names: list[str]) -> list[Entry]:
+    keys = [entry.current_key() for entry in entries]
+    candidates = list(zip(keys, (entry.local_directory for entry in entries), strict=True))
+    wanted = set()
+    for name in names:
+        key = match_key(name, candidates, project_key)
+        if key is None:
+            raise Failure("project_missing", f"No tracked project matches {name}", FailureKind.NOT_FOUND)
+        wanted.add(key)
+    return [entry for key, entry in zip(keys, entries, strict=True) if key in wanted]
 
 
 def sync(
@@ -117,6 +134,10 @@ def _sync_entry(store: Store, entry: Entry, model: LocalModel, progress: Progres
         logger.info("%s is unchanged at %s", index.key, revision.commit)
         return ProjectUpToDate(index.key, str(index.directory), index.manifest.revision)
     if isinstance(origin, GitRemoteSource):
-        progress.stage_started(Stage.CLONING)
-    with origin.checkout(entry.ref, revision) as checkout:
-        return index_checkout(store, checkout, entry.selection, model, progress)
+        kept = (index or store.get_or_create(origin.key, None)).remote_checkout_directory
+        progress.stage_started(Stage.FETCHING if origin.is_kept_in(kept) else Stage.CLONING)
+        checkout = origin.kept_checkout(kept, entry.ref, revision)
+    else:
+        checkout = origin.checkout(entry.ref, revision)
+    with checkout as checked_out:
+        return index_checkout(store, checked_out, entry.selection, model, progress)

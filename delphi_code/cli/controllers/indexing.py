@@ -17,8 +17,8 @@ def index(app: DelphiCode, project: str, selection: FileSelection, progress: Ter
     return ControllerResponse(outcome.to_json(), [view])
 
 
-def sync(app: DelphiCode, progress: TerminalProgress) -> ControllerResponse:
-    synced = app.sync(progress)
+def sync(app: DelphiCode, projects: list[str], progress: TerminalProgress) -> ControllerResponse:
+    synced = app.sync(projects, progress)
     if failure := synced.failure_if_any_failed():
         raise failure
     if not synced.projects:

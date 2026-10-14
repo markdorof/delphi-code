@@ -68,7 +68,10 @@ def arguments() -> argparse.Namespace:
     add.add_argument("--ref", help="Branch or tag of remote repositories; defaults to the default branch")
     _add_selection_options(add, indexing=True)
     add.add_argument("--no-sync", action="store_true", help="Only update the registry")
-    add_command_parser("sync", help="Index every tracked project")
+    sync = add_command_parser("sync", help="Index tracked projects, fetching remote repositories' new commits")
+    sync.add_argument(
+        "projects", nargs="*", metavar="PROJECT", help="Tracked project path, key, or name; omit to sync every one"
+    )
     listing = add_command_parser("list", help="List tracked projects and stored indexes")
     listing.add_argument("--indexed", action="store_true", help="Only list projects that have an index")
     remove = add_command_parser("remove", help="Stop tracking a project and delete its index")
@@ -140,7 +143,7 @@ COMMANDS: dict[str, Callable[[DelphiCode, argparse.Namespace, TerminalProgress],
     "add": lambda app, args, progress: indexing.add(
         app, args.sources, args.ref, _selection(args), not args.no_sync, progress, TerminalPrompts()
     ),
-    "sync": lambda app, args, progress: indexing.sync(app, progress),
+    "sync": lambda app, args, progress: indexing.sync(app, args.projects, progress),
     "list": lambda app, args, progress: project_catalog.list_tracked(app, args.indexed),
     "remove": lambda app, args, progress: project_catalog.remove(app, args.name, args.keep_index),
     "setup": lambda app, args, progress: installation.setup(
