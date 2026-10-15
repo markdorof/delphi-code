@@ -1,6 +1,96 @@
 {
   "components": {
     "schemas": {
+      "AccountConnectionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The signed-in account, when the service answered",
+            "title": "Account"
+          },
+          "credentials_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where the credentials were found, or null when none were",
+            "title": "Credentials Source"
+          },
+          "domain": {
+            "title": "Domain",
+            "type": "string"
+          },
+          "how_to_connect": {
+            "title": "How To Connect",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the service refused or could not be reached",
+            "title": "Problem"
+          },
+          "state": {
+            "enum": [
+              "connected",
+              "failed",
+              "not_connected"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "domain",
+          "name",
+          "state",
+          "account",
+          "credentials_source",
+          "problem",
+          "how_to_connect"
+        ],
+        "title": "AccountConnectionResponse",
+        "type": "object"
+      },
+      "AccountConnectionsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "connections": {
+            "items": {
+              "$ref": "#/components/schemas/AccountConnectionResponse"
+            },
+            "title": "Connections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "connections"
+        ],
+        "title": "AccountConnectionsResponse",
+        "type": "object"
+      },
       "AddRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1569,6 +1659,24 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/account-connections": {
+      "get": {
+        "operationId": "account_connections_api_account_connections_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountConnectionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Account Connections"
+      }
+    },
     "/api/doctor": {
       "get": {
         "operationId": "doctor_api_doctor_get",

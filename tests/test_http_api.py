@@ -195,6 +195,27 @@ class HttpApi(unittest.TestCase):
         listed = client.get("/api/hosting-services", headers=AUTHORIZED).json()["hosting_services"]
         self.assertEqual([service["name"] for service in listed], ["Bitbucket", "GitHub"])
 
+    def test_account_connections_name_the_account_or_the_problem(self):
+        rejected = Failure("remote_auth_failed", "GitHub rejected the token", FailureKind.REMOTE_FAILED)
+        client = self.client_with_hosts(
+            [
+                FakeHost([], [], account="acme-bot"),
+                FakeHost([], [], name="GitHub", account=rejected),
+                FakeHost([], [], name="Gitea", credentials_source=None),
+            ]
+        )
+        connections = client.get("/api/account-connections", headers=AUTHORIZED).json()["connections"]
+        self.assertEqual(
+            [(row["name"], row["state"], row["account"], row["problem"]) for row in connections],
+            [
+                ("Bitbucket", "connected", "acme-bot", None),
+                ("GitHub", "failed", None, "GitHub rejected the token"),
+                ("Gitea", "not_connected", None, None),
+            ],
+        )
+        self.assertEqual(connections[0]["credentials_source"], "FAKE_TOKEN from the environment")
+        self.assertEqual(connections[2]["how_to_connect"], "set FAKE_TOKEN")
+
     def test_lists_owners_and_their_repositories(self):
         client = self.client_with_hosts([FakeHost([Owner("acme", "Acme")], ACME)])
         owners = client.get("/api/hosting-services/bitbucket.example/owners", headers=AUTHORIZED).json()

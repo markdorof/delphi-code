@@ -6,11 +6,22 @@ from ...services.application import DelphiCode
 from ..progress_stream import NdjsonResponse, streamed_responses, streamed_write
 from ..request_context import delphi_code_of
 from ..request_models import PickedChangesRequest
-from ..response_models import HostingServicesResponse, OwnersResponse, RepositoriesResponse, TrackingReportResponse
+from ..response_models import (
+    AccountConnectionsResponse,
+    HostingServicesResponse,
+    OwnersResponse,
+    RepositoriesResponse,
+    TrackingReportResponse,
+)
 from ..security import require_same_origin
 
 router = APIRouter()
 changes_tracking = APIRouter(dependencies=[Depends(require_same_origin)])
+
+
+@router.get("/api/account-connections", response_model=AccountConnectionsResponse)
+def account_connections(delphi_code: Annotated[DelphiCode, Depends(delphi_code_of)]) -> dict:
+    return {"connections": [connection.to_json() for connection in delphi_code.account_connections()]}
 
 
 @router.get("/api/hosting-services", response_model=HostingServicesResponse)

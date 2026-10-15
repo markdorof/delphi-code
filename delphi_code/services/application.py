@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from ..domain.agent_connection import AgentConnectionsReport
 from ..domain.diagnostics import Diagnostics, ModelSetup
-from ..domain.hosting_services import HostingService, Owner, Repository
+from ..domain.hosting_services import AccountConnection, HostingService, Owner, Repository
 from ..domain.index_state import IndexState
 from ..domain.indexing_outcomes import IndexingOutcome, SyncReport
 from ..domain.project_listing import ProjectListing
@@ -92,6 +92,9 @@ class DelphiCode:
         from .agent_connections import disconnect_agents
 
         return disconnect_agents(command, agents)
+
+    def account_connections(self) -> list[AccountConnection]:
+        return self._hosting_services.account_connections()
 
     def hosting_services_with_credentials(self, refresh: bool = False) -> list[HostingService]:
         return self._hosting_services.with_credentials(refresh)

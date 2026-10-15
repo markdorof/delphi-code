@@ -67,11 +67,29 @@ def application(model_location: str = "/models/m", repository_hosts=None) -> Del
 
 class FakeHost:
     owner_noun = "workspace"
+    credentials_hint = "set FAKE_TOKEN"
 
-    def __init__(self, owners, repositories, name="Bitbucket", suggested_owner=None):
+    def __init__(
+        self,
+        owners,
+        repositories,
+        name="Bitbucket",
+        suggested_owner=None,
+        credentials_source="FAKE_TOKEN from the environment",
+        account="me",
+    ):
         self._owners, self._repositories, self.name = owners, repositories, name
         self.domain = f"{name.lower()}.example"
         self._suggested_owner = suggested_owner
+        self.credentials_source, self._account = credentials_source, account
+
+    def has_api_credentials(self):
+        return self.credentials_source is not None
+
+    def account(self):
+        if isinstance(self._account, Failure):
+            raise self._account
+        return self._account
 
     def description(self):
         return HostingService(self.domain, self.name, self.owner_noun, self._suggested_owner)

@@ -24,8 +24,11 @@ const DIAGNOSTICS = {
 function answerProjects() {
   apiServer.use(
     http.get(`${TEST_API_ORIGIN}/api/projects`, () => HttpResponse.json({ registry: "/repos.toml", repos: [] })),
+    http.get(`${TEST_API_ORIGIN}/api/account-connections`, () => HttpResponse.json({ connections: [] })),
   );
 }
+
+const NO_CONNECTION = { account: null, credentials_source: null, problem: null, how_to_connect: "set GITHUB_TOKEN" };
 
 describe("the setup page", () => {
   it("runs the installation checks in the folder the server started in unless a project is picked", async () => {
@@ -44,6 +47,54 @@ describe("the setup page", () => {
     expect(await screen.findByText("384 dimensions, self-distance 0.0000")).toBeTruthy();
     expect(screen.getByText("yes (python_audit)")).toBeTruthy();
     expect(checkedProject).toBe(".");
+  });
+
+  it("shows which Bitbucket and GitHub accounts are connected and checks them again on request", async () => {
+    answerProjects();
+    let checks = 0;
+    apiServer.use(
+      http.get(`${TEST_API_ORIGIN}/api/account-connections`, () => {
+        checks += 1;
+        return HttpResponse.json({
+          connections: [
+            {
+              ...NO_CONNECTION,
+              domain: "bitbucket.org",
+              name: "Bitbucket",
+              state: "connected",
+              account: "acme-bot",
+              credentials_source: "git credentials stored for bitbucket.org",
+            },
+            checks === 1
+              ? { ...NO_CONNECTION, domain: "github.com", name: "GitHub", state: "not_connected" }
+              : {
+                  ...NO_CONNECTION,
+                  domain: "github.com",
+                  name: "GitHub",
+                  state: "failed",
+                  credentials_source: "token from gh auth token",
+                  problem: "GitHub rejected the token from gh auth token",
+                },
+          ],
+        });
+      }),
+    );
+    renderAppAt("/setup");
+
+    const bitbucket = await screen.findByRole("listitem", { name: "Bitbucket" });
+    expect(within(bitbucket).getByText("Connected as acme-bot")).toBeTruthy();
+    expect(within(bitbucket).getByText("Using the git credentials stored for bitbucket.org.")).toBeTruthy();
+    expect(within(bitbucket).getByRole("link", { name: "Pick repositories" }).getAttribute("href")).toBe(
+      "/projects/from-account?service=bitbucket.org",
+    );
+    const github = screen.getByRole("listitem", { name: "GitHub" });
+    expect(within(github).getByText("Not connected")).toBeTruthy();
+    expect(within(github).getByText("To connect, set GITHUB_TOKEN.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Check again" }));
+
+    expect(await screen.findByText("GitHub rejected the token from gh auth token")).toBeTruthy();
+    expect(within(screen.getByRole("listitem", { name: "GitHub" })).getByText("Not working")).toBeTruthy();
   });
 
   it("imports a prepared model and reports it in the activity panel", async () => {

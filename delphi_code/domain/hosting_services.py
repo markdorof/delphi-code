@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import StrEnum
 
 
 @dataclass(frozen=True)
@@ -46,4 +47,36 @@ class Repository:
             "slug": self.slug,
             "description": self.description,
             "private": self.private,
+        }
+
+
+class ConnectionState(StrEnum):
+    CONNECTED = "connected"
+    FAILED = "failed"
+    NOT_CONNECTED = "not_connected"
+
+
+@dataclass(frozen=True)
+class AccountConnection:
+    service: HostingService
+    how_to_connect: str
+    credentials_source: str | None = None
+    account: str | None = None
+    problem: str | None = None
+
+    @property
+    def state(self) -> ConnectionState:
+        if self.credentials_source is None:
+            return ConnectionState.NOT_CONNECTED
+        return ConnectionState.FAILED if self.problem else ConnectionState.CONNECTED
+
+    def to_json(self) -> dict:
+        return {
+            "domain": self.service.domain,
+            "name": self.service.name,
+            "state": self.state,
+            "account": self.account,
+            "credentials_source": self.credentials_source,
+            "problem": self.problem,
+            "how_to_connect": self.how_to_connect,
         }

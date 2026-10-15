@@ -25,7 +25,7 @@ from delphi_code.domain.errors import Failure, FailureKind
 from delphi_code.domain.hosting_services import Owner, Repository
 from delphi_code.domain.tracking_changes import TrackingChanges
 from delphi_code.infrastructure import hosts
-from delphi_code.infrastructure.hosts import Bitbucket, GitHub, configured_hosts
+from delphi_code.infrastructure.hosts import Bitbucket, GitHub
 from delphi_code.services.progress import SILENT, Progress
 
 CREDENTIAL_VARIABLES = ("BITBUCKET_USERNAME", "BITBUCKET_APP_PASSWORD", "BITBUCKET_EMAIL", "GITHUB_TOKEN", "GH_TOKEN")
@@ -169,16 +169,16 @@ class Picking(unittest.TestCase):
     def test_needs_a_terminal_before_asking_for_credentials(self):
         with (
             patch.object(sys.stdin, "isatty", return_value=False),
-            patch("delphi_code.infrastructure.hosts.configured_hosts") as configured,
+            patch("delphi_code.infrastructure.hosts.known_hosts") as known,
             self.assertRaises(Failure) as raised,
         ):
             self.add_picked(TerminalPrompts())
         self.assertEqual(raised.exception.code, "usage")
-        configured.assert_not_called()
+        known.assert_not_called()
 
     def test_needs_credentials_for_some_host(self):
         with (
-            patch("delphi_code.infrastructure.hosts.configured_hosts", return_value=[]),
+            patch("delphi_code.infrastructure.hosts.known_hosts", return_value=[]),
             self.assertRaises(Failure) as raised,
         ):
             self.add_picked(TerminalPrompts({}))
@@ -352,6 +352,11 @@ class HostListingScript(unittest.TestCase):
             ],
         )
 
+    def test_account_names_come_from_each_service(self):
+        self.serve({"/2.0/user": {"username": "acme-bot", "display_name": "Acme Bot"}, "/user": {"login": "octo"}})
+        self.assertEqual(self.listed("bitbucket.org", "account"), (0, "acme-bot"))
+        self.assertEqual(self.listed("github.com", "account"), (0, "octo"))
+
     def test_http_errors_are_reported_as_json(self):
         self.serve({"/2.0/user/workspaces": HttpFailure(401)})
         self.assertEqual(
@@ -505,10 +510,13 @@ class Hosts(unittest.TestCase):
         with patch.dict(os.environ, {"GITHUB_TOKEN": "env-token"}):
             self.assertEqual(self.authorization_sent(GitHub()), "Bearer env-token")
 
-    def test_only_configured_hosts_are_offered(self):
+    def test_only_hosts_with_credentials_are_offered(self):
         self.isolate_git_and_gh()
-        self.assertEqual(configured_hosts(), [])
+        offered = lambda: [service.name for service in application().hosting_services_with_credentials(refresh=True)]
+        with self.assertRaises(Failure) as raised:
+            offered()
+        self.assertEqual(raised.exception.code, "remote_auth_missing")
         with patch.dict(os.environ, {"GITHUB_TOKEN": "token"}):
-            self.assertEqual([host.name for host in configured_hosts()], ["GitHub"])
+            self.assertEqual(offered(), ["GitHub"])
             with patch.dict(os.environ, {"BITBUCKET_USERNAME": "me", "BITBUCKET_APP_PASSWORD": "pw"}):
-                self.assertEqual([host.name for host in configured_hosts()], ["Bitbucket", "GitHub"])
+                self.assertEqual(offered(), ["Bitbucket", "GitHub"])

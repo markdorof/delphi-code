@@ -57,16 +57,27 @@ class RepositoryHost:
     def has_api_credentials(self):
         return self._available_api_credentials is not None
 
+    @property
+    def credentials_source(self):
+        credentials = self._available_api_credentials
+        return credentials.source if credentials else None
+
+    def account(self) -> str:
+        return self._run_in_child_process("account")
+
     def description(self) -> "HostingService":
         return HostingService(self.domain, self.name, self.owner_noun, self.suggested_owner())
 
     def owners(self):
-        return [Owner(**item) for item in self._list_in_child_process("owners")]
+        return [Owner(**item) for item in self._run_in_child_process("owners")]
 
     def repositories(self, owner):
-        return [Repository(**item) for item in self._list_in_child_process("repositories", owner)]
+        return [Repository(**item) for item in self._run_in_child_process("repositories", owner)]
 
     def _find_api_credentials(self):
+        raise NotImplementedError
+
+    def _account_name(self):
         raise NotImplementedError
 
     def _list_owners(self):
@@ -133,12 +144,12 @@ class RepositoryHost:
         with urlopen(Request(url, headers=headers), timeout=REQUEST_TIMEOUT_SECONDS, context=tls) as response:
             return json.load(response), (response.headers.get("Link") if response.headers else None) or ""
 
-    def _list_in_child_process(self, listing, *arguments) -> list[dict]:
+    def _run_in_child_process(self, request, *arguments) -> Any:
         credentials = self._api_credentials
         environment = dict(os.environ, DELPHI_CODE_API_AUTHORIZATION=credentials.authorization)
         try:
             result = subprocess.run(
-                [sys.executable, __file__, self.domain, listing, *arguments],
+                [sys.executable, __file__, self.domain, request, *arguments],
                 capture_output=True,
                 text=True,
                 timeout=LISTING_TIMEOUT_SECONDS,
@@ -218,6 +229,10 @@ class Bitbucket(RepositoryHost):
             (username, password), source = stored, f"git credentials stored for {self.domain}"
         return ApiCredentials("Basic " + base64.b64encode(f"{username}:{password}".encode()).decode(), source)
 
+    def _account_name(self):
+        user, _ = self._fetch_json(f"{self._api_base}/user")
+        return user.get("username") or user.get("nickname") or user["display_name"]
+
     def _workspaces_url(self):
         return f"{self._api_base}/user/workspaces?pagelen={PAGE_LENGTH}"
 
@@ -284,7 +299,11 @@ class GitHub(RepositoryHost):
 
     @cached_property
     def _accessible_repositories(self):
-        return [Repository(**item) for item in self._list_in_child_process("repositories")]
+        return [Repository(**item) for item in self._run_in_child_process("repositories")]
+
+    def _account_name(self):
+        user, _ = self._fetch_json(f"{self._api_base}/user")
+        return user["login"]
 
     def _repositories_url(self):
         query = urlencode(
@@ -313,8 +332,8 @@ HOSTS = (Bitbucket, GitHub)
 HOSTS_BY_DOMAIN = {host.domain: host for host in HOSTS}
 
 
-def configured_hosts():
-    return [host for host in (host_type() for host_type in HOSTS) if host.has_api_credentials()]
+def known_hosts():
+    return [host_type() for host_type in HOSTS]
 
 
 def _github_environment_token():
@@ -392,10 +411,11 @@ def _listed(value):
 
 
 def main(arguments):
-    domain, listing, *listing_arguments = arguments
+    domain, request, *request_arguments = arguments
     host = HOSTS_BY_DOMAIN[domain](os.environ["DELPHI_CODE_API_AUTHORIZATION"])
+    answers = {"account": host._account_name, "owners": host._list_owners, "repositories": host._list_repositories}
     try:
-        items = host._list_owners() if listing == "owners" else host._list_repositories(*listing_arguments)
+        answer = answers[request](*request_arguments)
     except HTTPError as exc:
         reason = _service_error_message(_error_body(exc)) or exc.reason
         path = urlsplit(exc.url).path if exc.url else None
@@ -404,7 +424,7 @@ def main(arguments):
     except (URLError, OSError, ValueError, KeyError, TypeError) as exc:
         print(json.dumps({"error": {"status": None, "message": str(exc)}}))
         return 1
-    print(json.dumps(items))
+    print(json.dumps(answer))
     return 0
 
 
