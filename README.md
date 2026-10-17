@@ -2,11 +2,10 @@
 
 <!-- mcp-name: io.github.markdorof/delphi-code -->
 
-Let your coding agent find code by what it does, not by what it's called. Ask "where are user passwords checked?" and get the right files back, even when no file contains those words.
+Let your coding agent browse code across all your repositories. Index local projects and GitHub or Bitbucket repositories, then ask "where does the backend handle the refund the web app requests?" and get the right files from every repository at once, even when no file contains those words.
 
 - **Private:** your code never leaves your machine. Indexing and search run offline with a local model; no account, cloud provider, or background daemon.
 - **Fast:** the MCP server keeps the model loaded, so repeated searches are near-instant. No GPU needed.
-- **Across repositories:** index local projects or GitHub and Bitbucket repositories and search them all at once.
 - **Works with your agents:** Claude Code, Claude Desktop, Codex, Cursor, VS Code, Gemini CLI, and OpenCode.
 
 ## Install

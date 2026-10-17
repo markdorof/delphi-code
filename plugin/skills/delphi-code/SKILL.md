@@ -1,6 +1,6 @@
 ---
 name: delphi-code
-description: Semantic code search over locally indexed projects with the delphi-code CLI. Use when looking for code by what it does rather than by an exact name — "where are passwords checked?", "how is retry handled?" — when you don't know which file or identifier to grep for, or when searching across several repositories at once.
+description: Semantic code search across the user's indexed repositories, local and remote, with the delphi-code CLI. Use when the code you need may live in another repository — "where does the backend handle this API call?" — or when looking for code by what it does rather than by an exact name, and you don't know which file or identifier to grep for.
 ---
 
 # Delphi Code semantic search
@@ -11,9 +11,9 @@ If the `delphi-code` MCP tools (`search`, `index`, `status`, and the rest) are a
 
 ## When to use it instead of grep
 
+- The answer may live in another repository the user has indexed: the service behind an API call, a shared library, the consumer of a message.
 - You know the behaviour or concept but not the identifier: "where is the session token refreshed?"
 - The codebase is unfamiliar and you need a starting point before reading files.
-- The answer may live in another repository the user has indexed.
 
 Use grep or file search instead when you already know an exact name, string, or path. A good pattern is to run a semantic search first to find the right files, then grep inside them.
 
@@ -35,7 +35,7 @@ The output is one JSON object. Results are in `data.results`, best match first:
 ]}}
 ```
 
-When you search every project, each result also has `project` (an absolute path, or null for a remote repository) and `key`. `path` is relative to the project root. A higher `score` is a closer match. Scores are relative, so compare results with each other rather than against a fixed threshold. Open the files you find and read around `start_line` before drawing conclusions.
+When you search every project, each result also has `project` (an absolute path, or null for a remote repository) and `key`. `path` is relative to the project root. A higher `score` is a closer match. Scores are relative, so compare results with each other rather than against a fixed threshold. Open the files you find and read around `start_line` before drawing conclusions. A remote repository has no local path to open, so search it again with a narrower query or `--path` to see more of it.
 
 ## Keeping the index current
 

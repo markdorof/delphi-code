@@ -14,8 +14,9 @@ from ..services.application import DelphiCode
 from .stdio_protocol import McpStdioServer, McpTool, McpToolFailure
 
 SERVER_INSTRUCTIONS = (
-    "Offline semantic code search over locally indexed projects. When you look for code by what it does and "
-    "don't know the identifier or file to grep for, call search first, then read the files it points to. "
+    "Offline semantic code search across the user's indexed repositories, local and remote. When you look for "
+    "code by what it does, or code that may live in another repository, call search first, then read the files "
+    "it points to; for a remote repository, search again to see more of it. "
     "Use grep instead for exact names and strings. Tools mirror the delphi-code CLI commands and options."
 )
 READ_ONLY = {"readOnlyHint": True, "openWorldHint": False}

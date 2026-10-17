@@ -1,12 +1,12 @@
 {
   "name": "delphi-code",
-  "description": "Offline semantic code search for agents",
+  "description": "Offline code search across all your repositories for agents",
   "owner": { "name": "Mark Dorofeev" },
   "plugins": [
     {
       "name": "delphi-code",
       "source": "./plugin",
-      "description": "Semantic code search over local indexes: MCP server and skill"
+      "description": "Semantic code search across local and remote repositories: MCP server and skill"
     }
   ]
 }

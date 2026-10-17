@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "delphi-code"
 version = "0.3.3"
-description = "Offline local code search for agents"
+description = "Offline code search across all your repositories for coding agents"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
 license = "Apache-2.0"
