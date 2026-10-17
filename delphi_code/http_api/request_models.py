@@ -44,3 +44,8 @@ class PickedChangesRequest(FileSelectionRequest):
 
     def changes(self) -> TrackingChanges:
         return TrackingChanges(self.added, self.removed)
+
+
+class AccountTokenRequest(RequestModel):
+    token: str = Field(min_length=1, description="An API token for the hosting service")
+    username: str | None = Field(None, description="The account the token belongs to, when the service needs it")

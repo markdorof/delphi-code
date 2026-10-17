@@ -31,6 +31,7 @@ def create_app(delphi_code: DelphiCode, settings: ApiSettings) -> FastAPI:
         projects.changes_projects,
         hosting_services.router,
         hosting_services.changes_tracking,
+        hosting_services.connection_changes,
         diagnostics.router,
         installation.router,
     )

@@ -96,6 +96,12 @@ class DelphiCode:
     def account_connections(self) -> list[AccountConnection]:
         return self._hosting_services.account_connections()
 
+    def connect_account(self, domain: str, token: str, username: str | None = None) -> AccountConnection:
+        return self._hosting_services.connect_account(domain, token, username)
+
+    def forget_saved_token(self, domain: str) -> AccountConnection:
+        return self._hosting_services.forget_saved_token(domain)
+
     def hosting_services_with_credentials(self, refresh: bool = False) -> list[HostingService]:
         return self._hosting_services.with_credentials(refresh)
 

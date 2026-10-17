@@ -21,6 +21,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/account-connections/{domain}/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save Account Token */
+        put: operations["save_account_token_api_account_connections__domain__token_put"];
+        post?: never;
+        /** Forget Account Token */
+        delete: operations["forget_account_token_api_account_connections__domain__token_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/doctor": {
         parameters: {
             query?: never;
@@ -238,15 +256,45 @@ export interface components {
              */
             problem: string | null;
             /**
+             * Saved Token
+             * @description Whether Delphi Code keeps a token for this service in the keychain
+             */
+            saved_token: boolean;
+            /**
              * State
              * @enum {string}
              */
             state: "connected" | "failed" | "not_connected";
+            /**
+             * Token Page
+             * @description Where to create a token for this service
+             */
+            token_page: string;
+            /** Token Permissions */
+            token_permissions: string;
+            /**
+             * Username Label
+             * @description What to ask for besides the token, or null when only it is needed
+             */
+            username_label: string | null;
         };
         /** AccountConnectionsResponse */
         AccountConnectionsResponse: {
             /** Connections */
             connections: components["schemas"]["AccountConnectionResponse"][];
+        };
+        /** AccountTokenRequest */
+        AccountTokenRequest: {
+            /**
+             * Token
+             * @description An API token for the hosting service
+             */
+            token: string;
+            /**
+             * Username
+             * @description The account the token belongs to, when the service needs it
+             */
+            username?: string | null;
         };
         /** AddRequest */
         AddRequest: {
@@ -822,6 +870,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccountConnectionsResponse"];
+                };
+            };
+        };
+    };
+    save_account_token_api_account_connections__domain__token_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                domain: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountConnectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    forget_account_token_api_account_connections__domain__token_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                domain: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountConnectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

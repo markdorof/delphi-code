@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends, Request
 from ...services.application import DelphiCode
 from ..progress_stream import NdjsonResponse, streamed_responses, streamed_write
 from ..request_context import delphi_code_of
-from ..request_models import PickedChangesRequest
+from ..request_models import AccountTokenRequest, PickedChangesRequest
 from ..response_models import (
+    AccountConnectionResponse,
     AccountConnectionsResponse,
     HostingServicesResponse,
     OwnersResponse,
@@ -17,11 +18,24 @@ from ..security import require_same_origin
 
 router = APIRouter()
 changes_tracking = APIRouter(dependencies=[Depends(require_same_origin)])
+connection_changes = APIRouter(dependencies=[Depends(require_same_origin)])
 
 
 @router.get("/api/account-connections", response_model=AccountConnectionsResponse)
 def account_connections(delphi_code: Annotated[DelphiCode, Depends(delphi_code_of)]) -> dict:
     return {"connections": [connection.to_json() for connection in delphi_code.account_connections()]}
+
+
+@connection_changes.put("/api/account-connections/{domain}/token", response_model=AccountConnectionResponse)
+def save_account_token(
+    delphi_code: Annotated[DelphiCode, Depends(delphi_code_of)], domain: str, body: AccountTokenRequest
+) -> dict:
+    return delphi_code.connect_account(domain, body.token.strip(), (body.username or "").strip() or None).to_json()
+
+
+@connection_changes.delete("/api/account-connections/{domain}/token", response_model=AccountConnectionResponse)
+def forget_account_token(delphi_code: Annotated[DelphiCode, Depends(delphi_code_of)], domain: str) -> dict:
+    return delphi_code.forget_saved_token(domain).to_json()
 
 
 @router.get("/api/hosting-services", response_model=HostingServicesResponse)

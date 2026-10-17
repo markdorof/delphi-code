@@ -28,7 +28,23 @@ function answerProjects() {
   );
 }
 
-const NO_CONNECTION = { account: null, credentials_source: null, problem: null, how_to_connect: "set GITHUB_TOKEN" };
+const NO_CONNECTION = {
+  account: null,
+  credentials_source: null,
+  problem: null,
+  how_to_connect: "set GITHUB_TOKEN",
+  token_page: "https://github.com/settings/tokens/new",
+  token_permissions: "Create a classic token with the repo scope",
+  username_label: null,
+  saved_token: false,
+};
+const BITBUCKET_NOT_CONNECTED = {
+  ...NO_CONNECTION,
+  domain: "bitbucket.org",
+  name: "Bitbucket",
+  state: "not_connected",
+  username_label: "Atlassian account email",
+};
 
 describe("the setup page", () => {
   it("runs the installation checks in the folder the server started in unless a project is picked", async () => {
@@ -89,12 +105,62 @@ describe("the setup page", () => {
     );
     const github = screen.getByRole("listitem", { name: "GitHub" });
     expect(within(github).getByText("Not connected")).toBeTruthy();
-    expect(within(github).getByText("To connect, set GITHUB_TOKEN.")).toBeTruthy();
+    expect(within(github).getByText("Connect with a token here, or set GITHUB_TOKEN.")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Check again" }));
 
     expect(await screen.findByText("GitHub rejected the token from gh auth token")).toBeTruthy();
     expect(within(screen.getByRole("listitem", { name: "GitHub" })).getByText("Not working")).toBeTruthy();
+  });
+
+  it("checks a pasted token, saves it, and can forget it again", async () => {
+    answerProjects();
+    const sentBodies: unknown[] = [];
+    apiServer.use(
+      http.get(`${TEST_API_ORIGIN}/api/account-connections`, () =>
+        HttpResponse.json({ connections: [BITBUCKET_NOT_CONNECTED] }),
+      ),
+      http.put(`${TEST_API_ORIGIN}/api/account-connections/bitbucket.org/token`, async ({ request }) => {
+        const body = (await request.json()) as { token: string };
+        sentBodies.push(body);
+        return body.token === "valid"
+          ? HttpResponse.json({
+              ...BITBUCKET_NOT_CONNECTED,
+              state: "connected",
+              account: "acme-bot",
+              credentials_source: "token saved by Delphi Code",
+              saved_token: true,
+            })
+          : HttpResponse.json(
+              { error: { code: "remote_auth_failed", message: "Bitbucket rejected this token" } },
+              { status: 502 },
+            );
+      }),
+      http.delete(`${TEST_API_ORIGIN}/api/account-connections/bitbucket.org/token`, () =>
+        HttpResponse.json(BITBUCKET_NOT_CONNECTED),
+      ),
+    );
+    renderAppAt("/setup");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Connect" }));
+    const form = screen.getByRole("form", { name: "Bitbucket token" });
+    expect(within(form).getByRole("link", { name: "Create a Bitbucket token" }).getAttribute("target")).toBe("_blank");
+    fireEvent.change(within(form).getByLabelText("Atlassian account email"), { target: { value: "me@example.com" } });
+    fireEvent.change(within(form).getByLabelText("Token"), { target: { value: "revoked" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Check and save" }));
+    expect(await within(form).findByText("Bitbucket rejected this token")).toBeTruthy();
+
+    fireEvent.change(within(form).getByLabelText("Token"), { target: { value: "valid" } });
+    fireEvent.click(within(form).getByRole("button", { name: "Check and save" }));
+
+    expect(await screen.findByText("Connected as acme-bot")).toBeTruthy();
+    expect(screen.queryByRole("form", { name: "Bitbucket token" })).toBeNull();
+    expect(sentBodies.at(-1)).toEqual({ token: "valid", username: "me@example.com" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Forget saved token" }));
+
+    expect(await screen.findByText("Not connected")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Forget saved token" })).toBeNull();
   });
 
   it("imports a prepared model and reports it in the activity panel", async () => {

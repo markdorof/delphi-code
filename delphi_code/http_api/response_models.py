@@ -208,6 +208,10 @@ class AccountConnectionResponse(ResponseModel):
     credentials_source: str | None = Field(description="Where the credentials were found, or null when none were")
     problem: str | None = Field(description="Why the service refused or could not be reached")
     how_to_connect: str
+    token_page: str = Field(description="Where to create a token for this service")
+    token_permissions: str
+    username_label: str | None = Field(description="What to ask for besides the token, or null when only it is needed")
+    saved_token: bool = Field(description="Whether Delphi Code keeps a token for this service in the keychain")
 
 
 class AccountConnectionsResponse(ResponseModel):

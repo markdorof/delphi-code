@@ -34,6 +34,38 @@ class ConnectedHostingServices:
         self._hosts_by_domain = {host.domain: host for host in hosts if host.has_api_credentials()}
         return [_account_connection(host) for host in hosts]
 
+    def connect_account(self, domain: str, token: str, username: str | None) -> AccountConnection:
+        host = self._known_host(domain)
+        if not token:
+            raise Failure("usage", f"Paste a {host.name} token", FailureKind.INVALID_REQUEST)
+        if host.token_form.username_label and not username:
+            raise Failure(
+                "usage", f"{host.name} needs your {host.token_form.username_label}", FailureKind.INVALID_REQUEST
+            )
+        try:
+            host.with_token(token, username).account()
+        except Failure as failure:
+            if failure.code != "remote_auth_failed":
+                raise
+            raise Failure(
+                "remote_auth_failed", f"{host.name} rejected this token. {host.rejected_token_hint}", failure.kind
+            ) from failure
+        host.save_token(token, username)
+        return self._refreshed_connection(domain)
+
+    def forget_saved_token(self, domain: str) -> AccountConnection:
+        self._known_host(domain).forget_saved_token()
+        return self._refreshed_connection(domain)
+
+    def _refreshed_connection(self, domain: str) -> AccountConnection:
+        return next(connection for connection in self.account_connections() if connection.service.domain == domain)
+
+    def _known_host(self, domain: str) -> RepositoryHost:
+        host = next((host for host in self._known_hosts() if host.domain == domain), None)
+        if host is None:
+            raise Failure("not_found", f"Delphi Code does not know {domain}", FailureKind.NOT_FOUND)
+        return host
+
     def with_credentials(self, refresh: bool = False) -> list[HostingService]:
         if refresh:
             self._hosts_by_domain = {}
@@ -99,7 +131,13 @@ class ConnectedHostingServices:
 
 
 def _account_connection(host: RepositoryHost) -> AccountConnection:
-    connection = AccountConnection(host.description(), host.credentials_hint, host.credentials_source)
+    connection = AccountConnection(
+        host.description(),
+        host.credentials_hint,
+        host.token_form,
+        saved_token=host.has_saved_token,
+        credentials_source=host.credentials_source,
+    )
     if connection.credentials_source is None:
         return connection
     try:

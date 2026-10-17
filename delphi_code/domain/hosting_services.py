@@ -50,6 +50,13 @@ class Repository:
         }
 
 
+@dataclass(frozen=True)
+class TokenForm:
+    token_page: str
+    token_permissions: str
+    username_label: str | None = None
+
+
 class ConnectionState(StrEnum):
     CONNECTED = "connected"
     FAILED = "failed"
@@ -60,6 +67,8 @@ class ConnectionState(StrEnum):
 class AccountConnection:
     service: HostingService
     how_to_connect: str
+    token_form: TokenForm
+    saved_token: bool = False
     credentials_source: str | None = None
     account: str | None = None
     problem: str | None = None
@@ -79,4 +88,8 @@ class AccountConnection:
             "credentials_source": self.credentials_source,
             "problem": self.problem,
             "how_to_connect": self.how_to_connect,
+            "token_page": self.token_form.token_page,
+            "token_permissions": self.token_form.token_permissions,
+            "username_label": self.token_form.username_label,
+            "saved_token": self.saved_token,
         }
