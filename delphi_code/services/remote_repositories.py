@@ -5,7 +5,7 @@ from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from ..domain.errors import Failure, FailureKind
-from ..domain.hosting_services import HostingService, Owner, Repository
+from ..domain.hosting_services import AccountConnection, HostingService, Owner, Repository
 from ..domain.selection import FileSelection
 from ..domain.tracking_changes import TrackingChanges
 from ..domain.tracking_report import TrackingReport
@@ -28,6 +28,43 @@ class ConnectedHostingServices:
     def __init__(self, find_hosts: Callable[[], Sequence[RepositoryHost]] | None = None):
         self._find_hosts = find_hosts
         self._hosts_by_domain: dict[str, RepositoryHost] = {}
+
+    def account_connections(self) -> list[AccountConnection]:
+        hosts = self._known_hosts()
+        self._hosts_by_domain = {host.domain: host for host in hosts if host.has_api_credentials()}
+        return [_account_connection(host) for host in hosts]
+
+    def connect_account(self, domain: str, token: str, username: str | None) -> AccountConnection:
+        host = self._known_host(domain)
+        if not token:
+            raise Failure("usage", f"Paste a {host.name} token", FailureKind.INVALID_REQUEST)
+        if host.token_form.username_label and not username:
+            raise Failure(
+                "usage", f"{host.name} needs your {host.token_form.username_label}", FailureKind.INVALID_REQUEST
+            )
+        try:
+            host.with_token(token, username).account()
+        except Failure as failure:
+            if failure.code != "remote_auth_failed":
+                raise
+            raise Failure(
+                "remote_auth_failed", f"{host.name} rejected this token. {host.rejected_token_hint}", failure.kind
+            ) from failure
+        host.save_token(token, username)
+        return self._refreshed_connection(domain)
+
+    def forget_saved_token(self, domain: str) -> AccountConnection:
+        self._known_host(domain).forget_saved_token()
+        return self._refreshed_connection(domain)
+
+    def _refreshed_connection(self, domain: str) -> AccountConnection:
+        return next(connection for connection in self.account_connections() if connection.service.domain == domain)
+
+    def _known_host(self, domain: str) -> RepositoryHost:
+        host = next((host for host in self._known_hosts() if host.domain == domain), None)
+        if host is None:
+            raise Failure("not_found", f"Delphi Code does not know {domain}", FailureKind.NOT_FOUND)
+        return host
 
     def with_credentials(self, refresh: bool = False) -> list[HostingService]:
         if refresh:
@@ -72,17 +109,17 @@ class ConnectedHostingServices:
 
     def _connected(self) -> dict[str, RepositoryHost]:
         if not self._hosts_by_domain:
-            self._hosts_by_domain = {host.domain: host for host in self._hosts_with_credentials()}
+            self._hosts_by_domain = {host.domain: host for host in self._known_hosts() if host.has_api_credentials()}
         if not self._hosts_by_domain:
             raise Failure("remote_auth_missing", MISSING_CREDENTIALS_MESSAGE, FailureKind.PREREQUISITE_MISSING)
         return self._hosts_by_domain
 
-    def _hosts_with_credentials(self) -> Sequence[RepositoryHost]:
+    def _known_hosts(self) -> Sequence[RepositoryHost]:
         if self._find_hosts is not None:
             return self._find_hosts()
-        from ..infrastructure.hosts import configured_hosts
+        from ..infrastructure.hosts import known_hosts
 
-        return configured_hosts()
+        return known_hosts()
 
     def _host_of(self, service: HostingService) -> RepositoryHost:
         host = self._connected().get(service.domain)
@@ -91,6 +128,22 @@ class ConnectedHostingServices:
                 "remote_auth_missing", f"No credentials found for {service.name}", FailureKind.PREREQUISITE_MISSING
             )
         return host
+
+
+def _account_connection(host: RepositoryHost) -> AccountConnection:
+    connection = AccountConnection(
+        host.description(),
+        host.credentials_hint,
+        host.token_form,
+        saved_token=host.has_saved_token,
+        credentials_source=host.credentials_source,
+    )
+    if connection.credentials_source is None:
+        return connection
+    try:
+        return replace(connection, account=host.account())
+    except Failure as failure:
+        return replace(connection, problem=str(failure))
 
 
 def tracked_keys(registry: Registry) -> set[str]:

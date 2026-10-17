@@ -1,6 +1,154 @@
 {
   "components": {
     "schemas": {
+      "AccountConnectionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The signed-in account, when the service answered",
+            "title": "Account"
+          },
+          "credentials_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where the credentials were found, or null when none were",
+            "title": "Credentials Source"
+          },
+          "domain": {
+            "title": "Domain",
+            "type": "string"
+          },
+          "how_to_connect": {
+            "title": "How To Connect",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the service refused or could not be reached",
+            "title": "Problem"
+          },
+          "saved_token": {
+            "description": "Whether Delphi Code keeps a token for this service in the keychain",
+            "title": "Saved Token",
+            "type": "boolean"
+          },
+          "state": {
+            "enum": [
+              "connected",
+              "failed",
+              "not_connected"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "token_page": {
+            "description": "Where to create a token for this service",
+            "title": "Token Page",
+            "type": "string"
+          },
+          "token_permissions": {
+            "title": "Token Permissions",
+            "type": "string"
+          },
+          "username_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What to ask for besides the token, or null when only it is needed",
+            "title": "Username Label"
+          }
+        },
+        "required": [
+          "domain",
+          "name",
+          "state",
+          "account",
+          "credentials_source",
+          "problem",
+          "how_to_connect",
+          "token_page",
+          "token_permissions",
+          "username_label",
+          "saved_token"
+        ],
+        "title": "AccountConnectionResponse",
+        "type": "object"
+      },
+      "AccountConnectionsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "connections": {
+            "items": {
+              "$ref": "#/components/schemas/AccountConnectionResponse"
+            },
+            "title": "Connections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "connections"
+        ],
+        "title": "AccountConnectionsResponse",
+        "type": "object"
+      },
+      "AccountTokenRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "description": "An API token for the hosting service",
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The account the token belongs to, when the service needs it",
+            "title": "Username"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "AccountTokenRequest",
+        "type": "object"
+      },
       "AddRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1569,6 +1717,110 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/account-connections": {
+      "get": {
+        "operationId": "account_connections_api_account_connections_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountConnectionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Account Connections"
+      }
+    },
+    "/api/account-connections/{domain}/token": {
+      "delete": {
+        "operationId": "forget_account_token_api_account_connections__domain__token_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "domain",
+            "required": true,
+            "schema": {
+              "title": "Domain",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountConnectionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Forget Account Token"
+      },
+      "put": {
+        "operationId": "save_account_token_api_account_connections__domain__token_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "domain",
+            "required": true,
+            "schema": {
+              "title": "Domain",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountConnectionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Account Token"
+      }
+    },
     "/api/doctor": {
       "get": {
         "operationId": "doctor_api_doctor_get",

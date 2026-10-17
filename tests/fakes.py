@@ -4,8 +4,8 @@ from unittest.mock import patch
 import numpy as np
 
 from delphi_code.domain.diagnostics import Diagnostics
-from delphi_code.domain.errors import Failure
-from delphi_code.domain.hosting_services import HostingService
+from delphi_code.domain.errors import Failure, FailureKind
+from delphi_code.domain.hosting_services import HostingService, TokenForm
 from delphi_code.domain.index_state import IndexCounts
 from delphi_code.domain.indexing_outcomes import IndexingOutcome
 from delphi_code.domain.manifest import IndexedRevision
@@ -67,11 +67,50 @@ def application(model_location: str = "/models/m", repository_hosts=None) -> Del
 
 class FakeHost:
     owner_noun = "workspace"
+    credentials_hint = "set FAKE_TOKEN"
+    valid_token = "valid-token"
+    rejected_token_hint = "Check the token"
 
-    def __init__(self, owners, repositories, name="Bitbucket", suggested_owner=None):
+    def __init__(
+        self,
+        owners,
+        repositories,
+        name="Bitbucket",
+        suggested_owner=None,
+        credentials_source="FAKE_TOKEN from the environment",
+        account="me",
+        username_label=None,
+    ):
         self._owners, self._repositories, self.name = owners, repositories, name
         self.domain = f"{name.lower()}.example"
         self._suggested_owner = suggested_owner
+        self.credentials_source, self._account = credentials_source, account
+        self.token_form = TokenForm(f"https://{self.domain}/tokens", "read access", username_label)
+        self.saved_token = None
+
+    @property
+    def has_saved_token(self):
+        return self.saved_token is not None
+
+    def with_token(self, token, username=None):
+        rejected = Failure("remote_auth_failed", "401", FailureKind.REMOTE_FAILED)
+        return FakeHost([], [], self.name, account=self._account if token == self.valid_token else rejected)
+
+    def save_token(self, token, username=None):
+        self.saved_token = (token, username)
+        self.credentials_source = "token saved by Delphi Code"
+
+    def forget_saved_token(self):
+        self.saved_token = None
+        self.credentials_source = None
+
+    def has_api_credentials(self):
+        return self.credentials_source is not None
+
+    def account(self):
+        if isinstance(self._account, Failure):
+            raise self._account
+        return self._account
 
     def description(self):
         return HostingService(self.domain, self.name, self.owner_noun, self._suggested_owner)
