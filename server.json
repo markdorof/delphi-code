@@ -13,6 +13,18 @@
       "registryType": "pypi",
       "identifier": "delphi-code",
       "version": "0.3.2",
+      "runtimeHint": "uvx",
+      "runtimeArguments": [
+        {
+          "type": "named",
+          "name": "--managed-python"
+        },
+        {
+          "type": "named",
+          "name": "--python",
+          "value": "3.14"
+        }
+      ],
       "transport": {
         "type": "stdio"
       },
