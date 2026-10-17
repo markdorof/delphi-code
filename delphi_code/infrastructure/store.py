@@ -27,7 +27,7 @@ def require_sqlite_extensions():
         raise Failure(
             "sqlite_extensions_unavailable",
             "This Python disables SQLite extension loading; reinstall with uv's own Python: "
-            "uv tool install --reinstall --managed-python delphi-code",
+            "uv tool install --reinstall --managed-python --python 3.14 delphi-code",
             FailureKind.PREREQUISITE_MISSING,
         )
 

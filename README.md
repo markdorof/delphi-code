@@ -18,7 +18,7 @@ curl -LsSf https://github.com/markdorof/delphi-code/releases/latest/download/ins
 The script installs [uv](https://docs.astral.sh/uv/) if needed, then runs `setup`, which downloads the embedding model once and connects every agent it finds. Options go after `sh -s --`: `--no-setup`, `--no-connect`, `--version VERSION`. With uv already installed:
 
 ```sh
-uv tool install --managed-python delphi-code
+uv tool install --managed-python --python 3.14 delphi-code
 delphi-code setup
 ```
 

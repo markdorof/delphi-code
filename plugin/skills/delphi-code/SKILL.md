@@ -58,4 +58,4 @@ On failure, `ok` is false and `error.code` and `error.message` say what went wro
 | 4 | No index, or an incompatible one | Run `delphi-code index -p <project>`, or follow the message |
 | 5 | Index busy or another failure | Retry shortly, or report the message |
 
-If `delphi-code` is not installed, tell the user it can be installed with `uv tool install --managed-python delphi-code && delphi-code setup`. Don't install it yourself without asking.
+If `delphi-code` is not installed, tell the user it can be installed with `uv tool install --managed-python --python 3.14 delphi-code && delphi-code setup`. Don't install it yourself without asking.
