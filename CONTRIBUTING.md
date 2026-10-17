@@ -108,6 +108,6 @@ The tag run repeats the checks and publishes to PyPI through a Trusted Publisher
 
 After publishing, the tag run creates a GitHub Release with the distributions and `install.sh` attached and notes listing the commit subjects since the previous tag. Commit subjects are the changelog, so write them for users. Mention index format changes that need a rebuild in the release notes by editing the release afterwards.
 
-The MCP Registry lists the server as `io.github.markdorof/delphi-code` from `server.json`. It verifies PyPI ownership through the `mcp-name` comment at the top of README.md, so keep that line. After a release reaches PyPI, run `mcp-publisher login github` and `mcp-publisher publish` from the repository root.
+The MCP Registry lists the server as `io.github.markdorof/delphi-code` from `server.json`. It verifies PyPI ownership through the `mcp-name` comment at the top of README.md, so keep that line. Once PyPI accepts the release, the tag run publishes `server.json` to the registry with a pinned `mcp-publisher`, authenticating through GitHub OIDC.
 
 `pyproject.toml` pins direct dependencies and bounds the risky indirect ones (torch, transformers, huggingface-hub, tokenizers), because `uv tool install` ignores `uv.lock`. Move those bounds when a new version has passed CI.
