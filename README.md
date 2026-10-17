@@ -1,5 +1,7 @@
 # Delphi Code
 
+<!-- mcp-name: io.github.markdorof/delphi-code -->
+
 Let your coding agent find code by what it does, not by what it's called. Ask "where are user passwords checked?" and get the right files back, even when no file contains those words.
 
 - **Private:** your code never leaves your machine. Indexing and search run offline with a local model; no account, cloud provider, or background daemon.

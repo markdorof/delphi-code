@@ -108,8 +108,8 @@ def _validate_layout(directory: Path):
     if not directory.is_dir() or not (directory / "modules.json").is_file():
         raise _model_failure(
             "model_missing",
-            f"Local SentenceTransformers assets missing: {directory}. Run delphi-code setup, "
-            "or set DELPHI_CODE_MODEL to prepared assets; downloads are never automatic.",
+            f"Local SentenceTransformers assets missing: {directory}. Run delphi-code setup "
+            "(or the setup MCP tool), or set DELPHI_CODE_MODEL to prepared assets; downloads are never automatic.",
         )
     modules = json.loads((directory / "modules.json").read_text())
     if not isinstance(modules, list) or not modules:

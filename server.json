@@ -1,0 +1,27 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.markdorof/delphi-code",
+  "title": "Delphi Code",
+  "description": "Offline semantic code search for coding agents, across local and GitHub/Bitbucket repos",
+  "repository": {
+    "url": "https://github.com/markdorof/delphi-code",
+    "source": "github"
+  },
+  "version": "0.3.1",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "delphi-code",
+      "version": "0.3.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        }
+      ]
+    }
+  ]
+}

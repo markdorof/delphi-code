@@ -101,11 +101,13 @@ The `Publish` GitHub Actions workflow builds and validates distributions on ever
 
 To release:
 
-1. Bump `version` in `pyproject.toml` and push to `main`.
+1. Bump `version` in `pyproject.toml` and both `version` fields in `server.json`, then push to `main`.
 2. Once the workflow passes, push a matching tag, for example `git tag v0.1.1 && git push origin v0.1.1`. The tag must match the package version.
 
 The tag run repeats the checks and publishes to PyPI through a Trusted Publisher (project `delphi-code`, owner `markdorof`, repository `delphi-code`, workflow `publish.yml`, environment `pypi`). Publishing uses GitHub OIDC; no stored PyPI token is needed. PyPI never accepts the same version twice.
 
 After publishing, the tag run creates a GitHub Release with the distributions and `install.sh` attached and notes listing the commit subjects since the previous tag. Commit subjects are the changelog, so write them for users. Mention index format changes that need a rebuild in the release notes by editing the release afterwards.
+
+The MCP Registry lists the server as `io.github.markdorof/delphi-code` from `server.json`. It verifies PyPI ownership through the `mcp-name` comment at the top of README.md, so keep that line. After a release reaches PyPI, run `mcp-publisher login github` and `mcp-publisher publish` from the repository root.
 
 `pyproject.toml` pins direct dependencies and bounds the risky indirect ones (torch, transformers, huggingface-hub, tokenizers), because `uv tool install` ignores `uv.lock`. Move those bounds when a new version has passed CI.
