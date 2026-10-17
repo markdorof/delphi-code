@@ -50,3 +50,22 @@ class ModelIdentity(unittest.TestCase):
             self.assertEqual(LocalModel.inspect(root).sha256, before)
             (root / "model.safetensors").write_bytes(b"changed")
             self.assertNotEqual(LocalModel.inspect(root).sha256, before)
+
+
+class TorchMacosRedirectsNotice(unittest.TestCase):
+    def test_only_the_redirects_notice_is_dropped(self):
+        import logging
+
+        from delphi_code.infrastructure.model import (
+            TORCH_MACOS_REDIRECTS_NOTICE,
+            TORCH_REDIRECTS_LOGGER,
+            _silence_torch_macos_redirects_notice,
+        )
+
+        _silence_torch_macos_redirects_notice()
+        _silence_torch_macos_redirects_notice()
+        torch_redirects = logging.getLogger(TORCH_REDIRECTS_LOGGER)
+        with self.assertLogs(torch_redirects, logging.WARNING) as logged:
+            torch_redirects.warning(TORCH_MACOS_REDIRECTS_NOTICE)
+            torch_redirects.warning("another warning")
+        self.assertEqual([record.getMessage() for record in logged.records], ["another warning"])

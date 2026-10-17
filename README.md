@@ -86,7 +86,10 @@ Your model and indexes are kept. If a command fails with `index_incompatible`, d
 delphi-code disconnect
 uv tool uninstall delphi-code
 rm -rf ~/Library/Application\ Support/delphi-code
+uv cache clean   # frees about 900 MB of downloaded packages
 ```
+
+If the install script installed uv and you don't need it, [uninstall uv](https://docs.astral.sh/uv/getting-started/installation/#uninstallation) and its Python too.
 
 ## License
 

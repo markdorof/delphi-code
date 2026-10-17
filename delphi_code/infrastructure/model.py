@@ -3,6 +3,7 @@ from __future__ import annotations
 from functools import cached_property
 import hashlib
 import json
+import logging
 from pathlib import Path
 import threading
 from typing import TYPE_CHECKING, NamedTuple
@@ -72,6 +73,7 @@ class LocalModel:
 
     @cached_property
     def _encoder(self):
+        _silence_torch_macos_redirects_notice()
         from sentence_transformers import SentenceTransformer
 
         try:
@@ -84,6 +86,22 @@ class LocalModel:
             )
         except Exception as exc:
             raise _model_failure("model_invalid", f"Cannot load local model assets at {self.directory}: {exc}") from exc
+
+
+TORCH_REDIRECTS_LOGGER = "torch.distributed.elastic.multiprocessing.redirects"
+TORCH_MACOS_REDIRECTS_NOTICE = "NOTE: Redirects are currently not supported in MacOs."
+
+
+def _silence_torch_macos_redirects_notice():
+    # Importing torch on macOS logs this notice to stderr; it is about a torch feature delphi-code never uses.
+    torch_redirects = logging.getLogger(TORCH_REDIRECTS_LOGGER)
+    if not any(isinstance(existing, _DropTorchMacosRedirectsNotice) for existing in torch_redirects.filters):
+        torch_redirects.addFilter(_DropTorchMacosRedirectsNotice())
+
+
+class _DropTorchMacosRedirectsNotice(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.getMessage() != TORCH_MACOS_REDIRECTS_NOTICE
 
 
 class _InspectedModel(NamedTuple):
