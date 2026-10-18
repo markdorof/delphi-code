@@ -7,12 +7,12 @@
     "url": "https://github.com/markdorof/delphi-code",
     "source": "github"
   },
-  "version": "0.3.3",
+  "version": "0.3.4",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "delphi-code",
-      "version": "0.3.3",
+      "version": "0.3.4",
       "runtimeHint": "uvx",
       "runtimeArguments": [
         {
