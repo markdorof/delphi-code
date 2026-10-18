@@ -4,6 +4,8 @@
 
 Let your coding agent browse code across all your repositories. Index local projects and GitHub or Bitbucket repositories, then ask "where does the backend handle the refund the web app requests?" and get the right files from every repository at once, even when no file contains those words.
 
+![Claude Code, opened in one service, is asked whether an endpoint can be removed and finds its only caller in another repository](https://raw.githubusercontent.com/markdorof/delphi-code/main/docs/demo.gif)
+
 - **Private:** your code never leaves your machine. Indexing and search run offline with a local model; no account, cloud provider, or background daemon.
 - **Fast:** the MCP server keeps the model loaded, so repeated searches are near-instant. No GPU needed.
 - **Works with your agents:** Claude Code, Claude Desktop, Codex, Cursor, VS Code, Gemini CLI, and OpenCode.
