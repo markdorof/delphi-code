@@ -57,6 +57,12 @@ class McpServerTools(unittest.TestCase):
         self.assertTrue(status["structuredContent"]["ready"])
         self.assertEqual([hit["path"] for hit in found["structuredContent"]["results"]], ["auth.py"])
 
+    def test_instructions_name_the_indexed_repositories(self):
+        self.assertNotIn("Indexed repositories", delphi_code_server(application(str(self.root / "model"))).instructions)
+        (indexed,) = self.results_of(("index", {"project": str(self.project)}))
+        instructions = delphi_code_server(application(str(self.root / "model"))).instructions
+        self.assertIn(f"Indexed repositories: {indexed['structuredContent']['key']}.", instructions)
+
     def test_project_defaults_to_the_working_directory(self):
         with patch.object(Path, "cwd", return_value=self.project):
             (indexed,) = self.results_of(("index", {}))

@@ -14,11 +14,15 @@ from ..services.application import DelphiCode
 from .stdio_protocol import McpStdioServer, McpTool, McpToolFailure
 
 SERVER_INSTRUCTIONS = (
-    "Offline semantic code search across the user's indexed repositories, local and remote. When you look for "
-    "code by what it does, or code that may live in another repository, call search first, then read the files "
-    "it points to; for a remote repository, search again to see more of it. "
-    "Use grep instead for exact names and strings. Tools mirror the delphi-code CLI commands and options."
+    "Offline semantic code search across the user's indexed repositories, local and remote. Questions that reach "
+    "beyond the current repository, such as who calls this service, which services it calls, or whether an "
+    "endpoint, field or message can be changed or removed, are answered by calling search without project, which "
+    "searches every indexed repository; do that before concluding the code doesn't show it. When you look for code "
+    "by what it does, call search first, then read the files it points to; for a remote repository, search again "
+    "to see more of it. Use grep for exact names and strings inside the current repository. Tools mirror the "
+    "delphi-code CLI commands and options."
 )
+MAX_NAMED_REPOSITORIES = 40
 READ_ONLY = {"readOnlyHint": True, "openWorldHint": False}
 UPDATES_LOCAL_INDEXES = {
     "readOnlyHint": False,
@@ -35,7 +39,19 @@ def serve():
 
 
 def delphi_code_server(app: DelphiCode) -> McpStdioServer:
-    return McpStdioServer("delphi-code", version("delphi-code"), SERVER_INSTRUCTIONS, delphi_code_tools(app))
+    return McpStdioServer("delphi-code", version("delphi-code"), server_instructions(app), delphi_code_tools(app))
+
+
+def server_instructions(app: DelphiCode) -> str:
+    try:
+        keys = sorted(project.key for project in app.list_projects(only_indexed=True).projects if project.ready)
+    except Failure:
+        return SERVER_INSTRUCTIONS
+    if not keys:
+        return SERVER_INSTRUCTIONS
+    named = ", ".join(keys[:MAX_NAMED_REPOSITORIES])
+    more = len(keys) - MAX_NAMED_REPOSITORIES
+    return f"{SERVER_INSTRUCTIONS} Indexed repositories: {named}{f' and {more} more' if more > 0 else ''}."
 
 
 def delphi_code_tools(app: DelphiCode) -> list[McpTool]:
@@ -54,14 +70,18 @@ def delphi_code_tools(app: DelphiCode) -> list[McpTool]:
             "search",
             "Find code by what it does. Call this before grepping or reading files whenever you look for where a "
             "behaviour or concept is implemented and don't know the exact identifier, file or string, such as "
-            "'where are passwords checked?' or 'how are failed requests retried?', and when the answer may be in "
-            "another indexed repository. Use grep only for exact names and strings you already know. Results are "
+            "'where are passwords checked?' or 'how are failed requests retried?'. Leave project out to search every "
+            "indexed repository: that is how to find a service's callers, its dependencies and other services' code. "
+            "Use grep only for exact names and strings you already know. Results are "
             "best match first; path is relative to the project and start_line/end_line locate the passage, so read "
             "around it. A higher score is a closer match; compare scores with each other, not with a fixed "
             "threshold. If the project is not indexed yet, call index first.",
             {
                 "query": _string_property("Describe the behaviour you are looking for, not a single keyword"),
-                "project": _string_property("Project path, indexed key or folder name; omit to search every index"),
+                "project": _string_property(
+                    "Project path, indexed key or folder name to stay inside one project; omit to search every "
+                    "indexed repository"
+                ),
                 "path": _string_list_property("Only results whose path matches one of these globs, such as src/*"),
                 "language": _string_list_property("Only results in these languages"),
                 "limit": _integer_property(

@@ -1,6 +1,6 @@
 ---
 name: delphi-code
-description: Semantic code search across the user's indexed repositories, local and remote, with the delphi-code CLI. Use when the code you need may live in another repository — "where does the backend handle this API call?" — or when looking for code by what it does rather than by an exact name, and you don't know which file or identifier to grep for.
+description: Semantic code search across the user's indexed repositories, local and remote, with the delphi-code CLI. Use for questions that reach beyond the current repository — who calls this service, which services it calls, whether an endpoint, field or message can be changed or removed, where the backend handles this API call — and when looking for code by what it does rather than by an exact name.
 ---
 
 # Delphi Code semantic search
@@ -11,7 +11,7 @@ If the `delphi-code` MCP tools (`search`, `index`, `status`, and the rest) are a
 
 ## When to use it instead of grep
 
-- The answer may live in another repository the user has indexed: the service behind an API call, a shared library, the consumer of a message.
+- The answer may live in another repository the user has indexed: who calls this service, which services it calls, the consumer of a message, whether an endpoint can be removed. Search every project (no `-p`) before concluding that the code doesn't show it; `delphi-code list --json --indexed` shows which repositories are indexed.
 - You know the behaviour or concept but not the identifier: "where is the session token refreshed?"
 - The codebase is unfamiliar and you need a starting point before reading files.
 
@@ -20,7 +20,8 @@ Use grep or file search instead when you already know an exact name, string, or 
 ## Searching
 
 ```sh
-delphi-code search --json -p /absolute/path/to/project 'where are user passwords checked?'
+delphi-code search --json 'which service handles POST /orders?'                         # every indexed repository
+delphi-code search --json -p /absolute/path/to/project 'where are user passwords checked?'  # one project
 ```
 
 - `-p` takes a path, an indexed key (`github.com/acme/api`), or a folder name (`api`). Leave it out to search every indexed project. The current directory is **not** the default for `search`.
