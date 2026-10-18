@@ -13,17 +13,24 @@ from urllib.request import Request, urlopen
 
 if __package__:
     from ..domain.errors import Failure, FailureKind
-    from ..domain.hosting_services import HostingService, Owner, Repository
+    from ..domain.hosting_services import HostingService, Owner, Repository, TokenForm
+    from .keychain import forget_secret, save_secret, saved_secret
 
 PAGE_LENGTH = 100
 REQUEST_TIMEOUT_SECONDS = 60
 LISTING_TIMEOUT_SECONDS = 300
 API_TOKEN_GIT_USERNAME = "x-bitbucket-api-token-auth"
+SAVED_TOKEN_SOURCE = "token saved by Delphi Code"
 
 
 class ApiCredentials(NamedTuple):
     authorization: str
     source: str
+
+
+class SavedToken(NamedTuple):
+    token: str
+    username: str | None
 
 
 class RepositoryHost:
@@ -34,6 +41,10 @@ class RepositoryHost:
     credentials_hint: str
     rejected_credentials_hint = ""
     missing_permission_hint = ""
+    token_page: str
+    token_permissions: str
+    token_username_label: str | None = None
+    rejected_token_hint = "Check that it is current and not revoked"
 
     def __init__(self, api_authorization=None):
         self._given_api_authorization = api_authorization
@@ -54,19 +65,62 @@ class RepositoryHost:
     def clone_credentials(self):
         raise NotImplementedError
 
+    @property
+    def token_form(self) -> "TokenForm":
+        return TokenForm(self.token_page, self.token_permissions, self.token_username_label)
+
+    def with_token(self, token: str, username: str | None = None) -> "RepositoryHost":
+        return type(self)(self._authorization_for(token, username))
+
+    @property
+    def has_saved_token(self) -> bool:
+        return self._saved_token() is not None
+
+    def save_token(self, token: str, username: str | None = None):
+        secret = json.dumps({"token": token, "username": username})
+        save_secret(self.domain, f"Delphi Code token for {self.name}", secret)
+
+    def forget_saved_token(self):
+        forget_secret(self.domain)
+
     def has_api_credentials(self):
         return self._available_api_credentials is not None
+
+    @property
+    def credentials_source(self):
+        credentials = self._available_api_credentials
+        return credentials.source if credentials else None
+
+    def account(self) -> str:
+        return self._run_in_child_process("account")
 
     def description(self) -> "HostingService":
         return HostingService(self.domain, self.name, self.owner_noun, self.suggested_owner())
 
     def owners(self):
-        return [Owner(**item) for item in self._list_in_child_process("owners")]
+        return [Owner(**item) for item in self._run_in_child_process("owners")]
 
     def repositories(self, owner):
-        return [Repository(**item) for item in self._list_in_child_process("repositories", owner)]
+        return [Repository(**item) for item in self._run_in_child_process("repositories", owner)]
 
     def _find_api_credentials(self):
+        raise NotImplementedError
+
+    def _authorization_for(self, token, username):
+        raise NotImplementedError
+
+    def _saved_credentials(self):
+        saved = self._saved_token()
+        return ApiCredentials(self._authorization_for(*saved), SAVED_TOKEN_SOURCE) if saved else None
+
+    def _saved_token(self):
+        try:
+            fields = json.loads(saved_secret(self.domain) or "null")
+            return SavedToken(fields["token"], fields.get("username")) if fields else None
+        except (ValueError, KeyError, TypeError, AttributeError):
+            return None
+
+    def _account_name(self):
         raise NotImplementedError
 
     def _list_owners(self):
@@ -133,12 +187,12 @@ class RepositoryHost:
         with urlopen(Request(url, headers=headers), timeout=REQUEST_TIMEOUT_SECONDS, context=tls) as response:
             return json.load(response), (response.headers.get("Link") if response.headers else None) or ""
 
-    def _list_in_child_process(self, listing, *arguments) -> list[dict]:
+    def _run_in_child_process(self, request, *arguments) -> Any:
         credentials = self._api_credentials
         environment = dict(os.environ, DELPHI_CODE_API_AUTHORIZATION=credentials.authorization)
         try:
             result = subprocess.run(
-                [sys.executable, __file__, self.domain, listing, *arguments],
+                [sys.executable, __file__, self.domain, request, *arguments],
                 capture_output=True,
                 text=True,
                 timeout=LISTING_TIMEOUT_SECONDS,
@@ -188,6 +242,16 @@ class Bitbucket(RepositoryHost):
         "Listing needs an API token with the scopes read:user:bitbucket, read:workspace:bitbucket and "
         "read:repository:bitbucket, or an app password with Account, Workspace membership and Repositories read access"
     )
+    token_page = "https://id.atlassian.com/manage-profile/security/api-tokens"
+    token_permissions = (
+        "Choose Create API token with scopes, not Create API token: Bitbucket refuses tokens without scopes. "
+        "Pick the Bitbucket app and grant read:user:bitbucket, read:workspace:bitbucket and read:repository:bitbucket"
+    )
+    token_username_label = "Atlassian account email"
+    rejected_token_hint = (
+        "Bitbucket accepts only tokens made with Create API token with scopes for the Bitbucket app, "
+        "and the email must be the one your Atlassian account signs in with"
+    )
     _repository_fields = "next,values.slug,values.description,values.is_private"
 
     def permalink_template(self, owner, repository, commit):
@@ -199,7 +263,8 @@ class Bitbucket(RepositoryHost):
     def clone_credentials(self):
         username, password = os.environ.get("BITBUCKET_USERNAME"), os.environ.get("BITBUCKET_APP_PASSWORD")
         if not password:
-            return None
+            saved = self._saved_token()
+            return (API_TOKEN_GIT_USERNAME, saved.token) if saved else None
         if username and "@" not in username:
             return username, password
         if username or os.environ.get("BITBUCKET_EMAIL"):
@@ -211,12 +276,21 @@ class Bitbucket(RepositoryHost):
         username, password = os.environ.get(username_variable), os.environ.get("BITBUCKET_APP_PASSWORD")
         if username and password:
             source = f"{username_variable} and BITBUCKET_APP_PASSWORD from the environment"
+        elif saved := self._saved_credentials():
+            return saved
         else:
             stored = _git_stored_credentials(self.domain)
             if stored is None:
                 return None
             (username, password), source = stored, f"git credentials stored for {self.domain}"
-        return ApiCredentials("Basic " + base64.b64encode(f"{username}:{password}".encode()).decode(), source)
+        return ApiCredentials(self._authorization_for(password, username), source)
+
+    def _authorization_for(self, token, username):
+        return "Basic " + base64.b64encode(f"{username}:{token}".encode()).decode()
+
+    def _account_name(self):
+        user, _ = self._fetch_json(f"{self._api_base}/user")
+        return user.get("username") or user.get("nickname") or user["display_name"]
 
     def _workspaces_url(self):
         return f"{self._api_base}/user/workspaces?pagelen={PAGE_LENGTH}"
@@ -255,25 +329,35 @@ class GitHub(RepositoryHost):
     missing_permission_hint = (
         "Listing needs a classic token with the repo scope, or a fine-grained token with Metadata read access"
     )
+    token_page = "https://github.com/settings/tokens/new?scopes=repo&description=Delphi%20Code"
+    token_permissions = "Create a classic token with the repo scope"
     _next_link = re.compile(r'<([^>]+)>;\s*rel="next"')
 
     def permalink_template(self, owner, repository, commit):
         return f"{self.web_url(owner, repository)}/blob/{commit}/{{path}}#L{{start}}-L{{end}}"
 
     def clone_credentials(self):
-        token = _github_environment_token()
+        token = _github_environment_token() or self._saved_bare_token()
         return ("x-access-token", token) if token else None
 
     def _find_api_credentials(self):
         for source, find_token in (
             ("GITHUB_TOKEN or GH_TOKEN from the environment", _github_environment_token),
+            (SAVED_TOKEN_SOURCE, self._saved_bare_token),
             ("token from gh auth token", lambda: _gh_token(self.domain)),
             (f"token stored in git credentials for {self.domain}", lambda: _git_stored_token(self.domain)),
         ):
             token = find_token()
             if token:
-                return ApiCredentials(f"Bearer {token}", source)
+                return ApiCredentials(self._authorization_for(token, None), source)
         return None
+
+    def _authorization_for(self, token, username):
+        return f"Bearer {token}"
+
+    def _saved_bare_token(self):
+        saved = self._saved_token()
+        return saved.token if saved else None
 
     def owners(self):
         owners = sorted({repository.owner for repository in self._accessible_repositories}, key=str.lower)
@@ -284,7 +368,11 @@ class GitHub(RepositoryHost):
 
     @cached_property
     def _accessible_repositories(self):
-        return [Repository(**item) for item in self._list_in_child_process("repositories")]
+        return [Repository(**item) for item in self._run_in_child_process("repositories")]
+
+    def _account_name(self):
+        user, _ = self._fetch_json(f"{self._api_base}/user")
+        return user["login"]
 
     def _repositories_url(self):
         query = urlencode(
@@ -313,8 +401,8 @@ HOSTS = (Bitbucket, GitHub)
 HOSTS_BY_DOMAIN = {host.domain: host for host in HOSTS}
 
 
-def configured_hosts():
-    return [host for host in (host_type() for host_type in HOSTS) if host.has_api_credentials()]
+def known_hosts():
+    return [host_type() for host_type in HOSTS]
 
 
 def _github_environment_token():
@@ -392,10 +480,11 @@ def _listed(value):
 
 
 def main(arguments):
-    domain, listing, *listing_arguments = arguments
+    domain, request, *request_arguments = arguments
     host = HOSTS_BY_DOMAIN[domain](os.environ["DELPHI_CODE_API_AUTHORIZATION"])
+    answers = {"account": host._account_name, "owners": host._list_owners, "repositories": host._list_repositories}
     try:
-        items = host._list_owners() if listing == "owners" else host._list_repositories(*listing_arguments)
+        answer = answers[request](*request_arguments)
     except HTTPError as exc:
         reason = _service_error_message(_error_body(exc)) or exc.reason
         path = urlsplit(exc.url).path if exc.url else None
@@ -404,7 +493,7 @@ def main(arguments):
     except (URLError, OSError, ValueError, KeyError, TypeError) as exc:
         print(json.dumps({"error": {"status": None, "message": str(exc)}}))
         return 1
-    print(json.dumps(items))
+    print(json.dumps(answer))
     return 0
 
 

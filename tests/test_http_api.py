@@ -195,6 +195,61 @@ class HttpApi(unittest.TestCase):
         listed = client.get("/api/hosting-services", headers=AUTHORIZED).json()["hosting_services"]
         self.assertEqual([service["name"] for service in listed], ["Bitbucket", "GitHub"])
 
+    def test_account_connections_name_the_account_or_the_problem(self):
+        rejected = Failure("remote_auth_failed", "GitHub rejected the token", FailureKind.REMOTE_FAILED)
+        client = self.client_with_hosts(
+            [
+                FakeHost([], [], account="acme-bot"),
+                FakeHost([], [], name="GitHub", account=rejected),
+                FakeHost([], [], name="Gitea", credentials_source=None),
+            ]
+        )
+        connections = client.get("/api/account-connections", headers=AUTHORIZED).json()["connections"]
+        self.assertEqual(
+            [(row["name"], row["state"], row["account"], row["problem"]) for row in connections],
+            [
+                ("Bitbucket", "connected", "acme-bot", None),
+                ("GitHub", "failed", None, "GitHub rejected the token"),
+                ("Gitea", "not_connected", None, None),
+            ],
+        )
+        self.assertEqual(connections[0]["credentials_source"], "FAKE_TOKEN from the environment")
+        self.assertEqual(connections[2]["how_to_connect"], "set FAKE_TOKEN")
+
+    def test_a_verified_token_is_saved_and_can_be_forgotten(self):
+        github = FakeHost([], [], name="GitHub", credentials_source=None, account="octo")
+        client = self.client_with_hosts([github])
+        url = "/api/account-connections/github.example/token"
+        rejected = client.put(url, json={"token": "revoked"}, headers=AUTHORIZED)
+        self.assertEqual((rejected.status_code, rejected.json()["error"]["code"]), (502, "remote_auth_failed"))
+        self.assertIn("GitHub rejected this token", rejected.json()["error"]["message"])
+        self.assertIsNone(github.saved_token)
+        saved = client.put(url, json={"token": " valid-token "}, headers=AUTHORIZED).json()
+        self.assertEqual((saved["state"], saved["account"], saved["saved_token"]), ("connected", "octo", True))
+        self.assertEqual(github.saved_token, ("valid-token", None))
+        forgotten = client.delete(url, headers=AUTHORIZED).json()
+        self.assertEqual((forgotten["state"], forgotten["saved_token"]), ("not_connected", False))
+
+    def test_saving_a_token_checks_the_request(self):
+        bitbucket = FakeHost([], [], credentials_source=None, username_label="Atlassian account email")
+        client = self.client_with_hosts([bitbucket])
+        cases = [
+            ("bitbucket.example", {"token": "valid-token"}, 400, "usage"),
+            ("bitbucket.example", {"token": "   ", "username": "me@example.com"}, 400, "usage"),
+            ("gitea.example", {"token": "valid-token"}, 404, "not_found"),
+        ]
+        for domain, body, status, code in cases:
+            with self.subTest(domain=domain, body=body):
+                response = client.put(f"/api/account-connections/{domain}/token", json=body, headers=AUTHORIZED)
+                self.assertEqual((response.status_code, response.json()["error"]["code"]), (status, code))
+        foreign = client.put(
+            "/api/account-connections/bitbucket.example/token",
+            json={"token": "valid-token", "username": "me@example.com"},
+            headers={**AUTHORIZED, "Origin": "http://attacker.example"},
+        )
+        self.assertEqual(foreign.status_code, 403)
+        self.assertIsNone(bitbucket.saved_token)
+
     def test_lists_owners_and_their_repositories(self):
         client = self.client_with_hosts([FakeHost([Owner("acme", "Acme")], ACME)])
         owners = client.get("/api/hosting-services/bitbucket.example/owners", headers=AUTHORIZED).json()

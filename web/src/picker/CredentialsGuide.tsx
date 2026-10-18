@@ -1,9 +1,18 @@
+import { Link } from "@tanstack/react-router";
+
 export function CredentialsGuide() {
   return (
     <section className="grid gap-2 rounded-lg border p-4 text-sm">
       <h2 className="font-medium">Connect Bitbucket or GitHub</h2>
       <p className="text-muted-foreground">Delphi Code found no credentials. Any of these works:</p>
       <ul className="grid list-disc gap-1 pl-5">
+        <li>
+          Paste a token on the{" "}
+          <Link to="/setup" className="underline underline-offset-4">
+            Setup page
+          </Link>
+          .
+        </li>
         <li>
           Sign in with <code className="font-mono">gh auth login</code>, or store git credentials for bitbucket.org or
           github.com. Then reload this page.
